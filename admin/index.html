@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#176b43">
+  <link rel="icon" type="image/webp" href="../assets/imagens/favicon.webp">
+  <link rel="apple-touch-icon" href="../assets/imagens/favicon.webp"><title>Administração | Mercado Jesi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="../assets/css/admin.css">
+</head>
+<body class="admin-body">
+  <main class="login-shell">
+    <a class="admin-brand" href="../index.html"><i class="fa-solid fa-cart-shopping" aria-hidden="true"></i> Mercado Jesi <span>ADMIN</span></a>
+    <section class="login-card">
+      <span class="eyebrow">ÁREA RESTRITA</span><h1>Acesse a administração</h1>
+      <p>Entre com uma conta autorizada para gerenciar a loja.</p>
+      <form id="login-form">
+        <label for="email">E-mail</label><input id="email" type="email" autocomplete="username" required placeholder="seu@email.com">
+        <label for="password">Senha</label><div class="password-field"><input id="password" type="password" autocomplete="current-password" required placeholder="Sua senha"><button class="password-peek" id="password-peek" type="button" aria-label="Segure para visualizar a senha"><i class="fa-solid fa-eye" aria-hidden="true"></i></button></div>
+        <button class="admin-button" type="submit">Entrar no painel</button>
+        <p class="form-message" id="form-message" role="alert"></p>
+      </form>
+      <a class="back-link" href="../index.html"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Voltar para a loja</a>
+    </section>
+    <small class="login-note">Mercado Jesi • Sistema de gestão</small>
+  </main>
+  <script type="module" src="../assets/js/admin-login.js"></script>
+</body>
+</html>

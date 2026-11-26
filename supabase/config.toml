@@ -1,0 +1,11 @@
+[functions.create-checkout]
+verify_jwt = false
+
+[functions.mercadopago-webhook]
+verify_jwt = false
+
+[functions.manage-delivery]
+verify_jwt = true
+
+[functions.create-staff-user]
+verify_jwt = true

@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#176b43">
+  <link rel="icon" type="image/webp" href="./assets/imagens/favicon.webp">
+  <link rel="apple-touch-icon" href="./assets/imagens/favicon.webp">
+  <meta name="description" content="Mercado Jesi: qualidade, economia e praticidade pertinho de você.">
+  <title>Mercado Jesi | Tudo pertinho de você</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+    crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="./assets/css/styles.css">
+</head>
+
+<body>
+  <div class="top-strip">Frete grátis acima de R$ 100,00 <span aria-hidden="true">•</span> Ofertas especiais todos os dias!</div>
+  <header class="site-header">
+    <a class="brand" href="./index.html" aria-label="Mercado Jesi - início">
+      <img class="brand-logo" src="./assets/imagens/jesi-logo.webp" alt="Mercado Jesi">
+    </a>
+    <form class="search" id="search-form" role="search">
+      <input id="search-input" type="search" placeholder="O que você está procurando?" aria-label="Buscar produtos">
+      <button aria-label="Buscar"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>
+    </form>
+    <nav class="header-actions" aria-label="Ações">
+      <a href="#categorias">Categorias</a>
+      <a href="#produtos">Produtos</a>
+      <a href="#contato">Contato</a>
+      <a href="./admin/index.html">Área administrativa</a>
+      <button class="cart-button" id="cart-button">Sacola <span id="cart-count">0</span></button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow">MERCADO JESI • ECONOMIA PERTO DE VOCÊ</span>
+        <h1>Sua compra do dia a dia, <em>muito mais fácil.</em></h1>
+        <p>Encontre seus produtos favoritos com praticidade, qualidade e aquele atendimento de mercado de bairro.</p>
+        <a class="primary-button" href="#produtos">Ver produtos <span><i class="fa-solid fa-arrow-right"
+              aria-hidden="true"></i></span></a>
+        <div class="trust-row"><span>✓ Produtos selecionados</span><span>✓ Atendimento próximo</span></div>
+      </div>
+      <div class="hero-art">
+        <img src="assets/imagens/imagem-home.webp" alt="Carrinho cheio de produtos do Mercado Jesi">
+      </div>
+    </section>
+
+    <section class="section" id="categorias">
+      <div class="section-heading">
+        <div><span class="eyebrow">ENCONTRE MAIS RÁPIDO</span>
+          <h2>Compre por categoria</h2>
+        </div>
+      </div>
+      <div class="category-grid" id="category-list">
+        <button class="category-card" data-category="Mercearia"><span><i class="fa-solid fa-bowl-rice"
+              aria-hidden="true"></i></span><strong>Mercearia</strong></button>
+        <button class="category-card" data-category="Bebidas"><span><i class="fa-solid fa-glass-water"
+              aria-hidden="true"></i></span><strong>Bebidas</strong></button>
+        <button class="category-card" data-category="Hortifruti"><span><i class="fa-solid fa-leaf"
+              aria-hidden="true"></i></span><strong>Hortifruti</strong></button>
+        <button class="category-card" data-category="Limpeza"><span><i class="fa-solid fa-spray-can-sparkles"
+              aria-hidden="true"></i></span><strong>Limpeza</strong></button>
+        <button class="category-card" data-category="Higiene"><span><i class="fa-solid fa-pump-soap"
+              aria-hidden="true"></i></span><strong>Higiene</strong></button>
+        <button class="category-card" data-category="Padaria"><span><i class="fa-solid fa-bread-slice"
+              aria-hidden="true"></i></span><strong>Padaria</strong></button>
+      </div>
+    </section>
+
+    <section class="section products-section" id="produtos">
+      <div class="section-heading">
+        <div><span class="eyebrow">SELEÇÃO DO MERCADO</span>
+          <h2>Nossos produtos</h2>
+        </div><span class="result-count" id="result-count">Carregando catálogo...</span>
+      </div>
+      <div class="product-grid" id="product-grid">
+        <div class="loading">Carregando produtos...</div>
+      </div>
+    </section>
+
+    <section class="section contact-section" id="contato">
+      <div class="contact-intro"><span class="eyebrow">FALE COM A GENTE</span>
+        <h2>Estamos aqui para <em>ajudar você.</em></h2>
+        <p>Tem alguma dúvida, sugestão ou precisa de ajuda? Envie sua mensagem. Nossa equipe terá prazer em atender.</p>
+        <div class="contact-promise"><span><i class="fa-solid fa-comments" aria-hidden="true"></i></span>
+          <div><strong>Atendimento próximo</strong><small>O cuidado de um mercado de bairro, também no digital.</small>
+          </div>
+        </div>
+      </div>
+      <form class="contact-form" id="contact-form">
+        <div class="contact-form-heading">
+          <h3>Envie sua mensagem</h3>
+          <p>Preencha os campos abaixo para falar com nossa equipe.</p>
+        </div>
+        <div class="contact-fields">
+          <label class="contact-field"><span>Seu nome *</span><input name="name" autocomplete="name" maxlength="120"
+              required placeholder="Como podemos chamar você?"></label>
+          <label class="contact-field"><span>Seu e-mail *</span><input name="email" type="email" autocomplete="email"
+              maxlength="254" required placeholder="voce@email.com"></label>
+          <label class="contact-field"><span>Telefone / WhatsApp</span><input name="phone" type="tel" autocomplete="tel"
+              maxlength="30" placeholder="(00) 00000-0000"></label>
+          <label class="contact-field"><span>Assunto *</span><select name="subject" required>
+              <option value="">Selecione um assunto</option>
+              <option>Dúvida sobre produtos</option>
+              <option>Pedido e entrega</option>
+              <option>Preços e ofertas</option>
+              <option>Sugestão ou elogio</option>
+              <option>Outro assunto</option>
+            </select></label>
+          <label class="contact-field contact-field-wide"><span>Sua mensagem *</span><textarea name="message" rows="5"
+              maxlength="5000" required placeholder="Escreva sua mensagem aqui..."></textarea></label>
+        </div>
+        <div class="contact-form-footer"><small>Seus dados serão usados apenas para responder ao seu
+            contato.</small><button class="primary-button" type="submit">Enviar mensagem <i
+              class="fa-solid fa-arrow-right" aria-hidden="true"></i></button></div>
+        <p class="contact-status" data-contact-status role="status" aria-live="polite"></p>
+      </form>
+    </section>
+  </main>
+
+  <button class="back-to-top" id="back-to-top" type="button" aria-label="Voltar ao topo" title="Voltar ao topo">
+    <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
+  </button>
+
+  <footer class="site-footer">
+    <p>Qualidade, economia e praticidade no seu dia a dia.</p><small>© <span id="year"></span> Mercado Jesi. Todos os
+      direitos reservados.</small>
+  </footer>
+  <aside class="cart-drawer" id="cart-drawer" aria-hidden="true">
+    <div class="cart-head">
+      <div><span class="eyebrow">SEU PEDIDO</span>
+        <h2>Sua sacola</h2>
+      </div><button id="cart-close" aria-label="Fechar sacola">×</button>
+    </div>
+    <div id="cart-items" class="cart-items">
+      <p class="empty-cart">Sua sacola está vazia.</p>
+    </div>
+    <div class="cart-foot">
+      <div><span>Subtotal</span><strong id="cart-subtotal">R$ 0,00</strong></div><button class="primary-button"
+        id="checkout-button">Continuar compra <i class="fa-solid fa-arrow-right"
+          aria-hidden="true"></i></button><small>Pagamento seguro e confirmação automática do pedido.</small>
+    </div>
+  </aside>
+  <div class="drawer-backdrop" id="drawer-backdrop"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./assets/js/phone-mask.js"></script>
+  <script type="module" src="./assets/js/currency-mask.js"></script>
+  <script type="module" src="./assets/js/home-selects.js"></script>
+  <script type="module" src="./assets/js/app.js"></script>
+  <script type="module" src="./assets/js/contact.js"></script>
+</body>
+
+</html>
