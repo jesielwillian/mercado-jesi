@@ -644,6 +644,25 @@ async function handleModalClick(event) {
   }
 }
 
+async function getEdgeFunctionErrorMessage(error, data) {
+  if (data?.error) return data.error;
+
+  // FunctionsHttpError guarda a Response original em `context`.
+  // O corpo do 409 contém a mensagem específica enviada pela Edge Function.
+  const response = error?.context;
+  if (response && typeof response.clone === "function") {
+    try {
+      const payload = await response.clone().json();
+      if (payload?.error) return payload.error;
+      if (payload?.message) return payload.message;
+    } catch {
+      // Resposta não JSON: usa a mensagem padrão abaixo.
+    }
+  }
+
+  return error?.message || "Erro desconhecido ao atualizar o pedido.";
+}
+
 async function handleStatusChange(event) {
   const select = event.target.closest("[data-status-id]");
   if (!select) return;
@@ -660,7 +679,10 @@ async function handleStatusChange(event) {
     const { data, error } = await supabase.functions.invoke("manage-delivery", {
       body: { order_id: order.id, status: newStatus, note: `Status alterado para ${statuses[newStatus]}.` },
     });
-    if (error) throw new Error(data?.error || error.message);
+    if (error) {
+      const message = await getEdgeFunctionErrorMessage(error, data);
+      throw new Error(message);
+    }
     if (data?.error) throw new Error(data.error);
 
     order.status = newStatus;
