@@ -227,7 +227,7 @@ export function mountFinanceAdmin({content, notify}) {
     const [payments, expenses] = await Promise.all([
       supabase.from("payments").select("id,amount,status,method,paid_at,created_at")
         .eq("status","paid").gte("paid_at",start).lt("paid_at",end).order("paid_at",{ascending:false}),
-      supabase.from("expenses").select("*").not("paid_at","is",null).gte("paid_at",start).lt("paid_at",end).order("paid_at",{ascending:false})
+      supabase.from("expenses").select("*").gte("created_at",start).lt("created_at",end).order("created_at",{ascending:false})
     ]);
     if (payments.error) throw payments.error;
     if (expenses.error) throw expenses.error;
@@ -244,7 +244,7 @@ export function mountFinanceAdmin({content, notify}) {
       <div class="ba-head"><h2>Financeiro</h2><span class="ba-muted">Resumo do mês atual</span></div>
       <div class="ba-grid">
         <article class="ba-card"><small>Receitas confirmadas</small><strong>${money(income)}</strong></article>
-        <article class="ba-card"><small>Despesas pagas</small><strong>${money(costs)}</strong></article>
+        <article class="ba-card"><small>Despesas cadastradas</small><strong>${money(costs)}</strong></article>
         <article class="ba-card"><small>Resultado do período</small><strong>${money(income-costs)}</strong></article>
       </div>
       <section class="ba-panel"><h3>Registrar despesa</h3>
@@ -256,7 +256,7 @@ export function mountFinanceAdmin({content, notify}) {
           <div class="ba-actions wide"><button class="ba-btn" type="submit">Cadastrar despesa</button></div>
         </form>
       </section>
-      <section class="ba-panel"><h3>Despesas pagas no mês</h3>
+      <section class="ba-panel"><h3>Despesas do mês</h3>
         ${table(["Descrição","Categoria","Vencimento","Pagamento","Valor","Ações"],rows)}
       </section>
       <section class="ba-panel"><h3>Pagamentos recebidos no mês</h3>
@@ -310,155 +310,86 @@ export function mountFinanceAdmin({content, notify}) {
   load().catch(e=>errorView(root,e,()=>load().catch(x=>errorView(root,x,load))));
 }
 
-/* RELATÓRIOS E FATURAMENTO */
+/* RELATÓRIOS */
 export function mountReportsAdmin({content, notify}) {
-  const root = setup(content, "Faturamento e relatórios", notify);
-
-  const dateKey = value => {
-    const d = new Date(value);
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-  };
-  const weekKey = value => {
-    const d = new Date(value);
-    d.setHours(0,0,0,0);
-    const day = (d.getDay()+6)%7;
-    d.setDate(d.getDate()-day);
-    return dateKey(d);
-  };
-  const monthKey = value => {
-    const d = new Date(value);
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
-  };
-  const periodLabel = (key, mode) => {
-    if (mode === "month") {
-      const [y,m] = key.split("-");
-      return new Date(Number(y),Number(m)-1,1).toLocaleDateString("pt-BR",{month:"long",year:"numeric"});
-    }
-    return new Date(`${key}T12:00:00`).toLocaleDateString("pt-BR");
-  };
+  const root = setup(content, "Relatórios", notify);
 
   async function load(from,to) {
-    const start = from ? new Date(`${from}T00:00:00`).toISOString() : new Date(Date.now()-29*86400000).toISOString();
+    const start = from ? new Date(`${from}T00:00:00`).toISOString() : new Date(Date.now()-30*86400000).toISOString();
     const finish = to ? new Date(`${to}T23:59:59.999`).toISOString() : new Date().toISOString();
     if (new Date(start)>new Date(finish)) throw new Error("O período inicial deve ser anterior ao final.");
 
-    const [inventoryResult, ordersResult, paidResult, pendingResult, refundedResult, expensesResult] = await Promise.all([
-      supabase.from("inventory").select("quantity,minimum_quantity,products(name,sku)").limit(2000),
-      supabase.from("orders").select("id,order_number,status,total,created_at,customer_name")
-        .gte("created_at",start).lte("created_at",finish)
-        .order("created_at",{ascending:false}).limit(5000),
-      supabase.from("payments").select("id,order_id,amount,status,method,paid_at,created_at")
-        .eq("status","paid").not("paid_at","is",null).gte("paid_at",start).lte("paid_at",finish)
-        .order("paid_at",{ascending:false}).limit(5000),
-      supabase.from("payments").select("id,order_id,amount,status,method,created_at")
-        .eq("status","pending").gte("created_at",start).lte("created_at",finish).limit(5000),
-      supabase.from("payments").select("id,order_id,amount,status,method,updated_at,created_at")
-        .eq("status","refunded").gte("updated_at",start).lte("updated_at",finish).limit(5000),
-      supabase.from("expenses").select("id,description,amount,paid_at")
-        .not("paid_at","is",null).gte("paid_at",start).lte("paid_at",finish).limit(5000)
-    ]);
+    const {data: inventoryData, error: inventoryError} = await supabase
+      .from("inventory")
+      .select("quantity,minimum_quantity,products(name,sku)")
+      .limit(2000);
+    if (inventoryError) throw inventoryError;
 
-    for (const result of [inventoryResult,ordersResult,paidResult,pendingResult,refundedResult,expensesResult]) {
-      if (result.error) throw result.error;
+    const list = [];
+    for (let offset = 0; ; offset += 1000) {
+      const {data, error} = await supabase.from("orders")
+        .select("id,order_number,status,total,created_at,customer_name")
+        .gte("created_at", start)
+        .lte("created_at", finish)
+        .order("created_at", {ascending:false})
+        .range(offset, offset + 999);
+      if (error) throw error;
+      list.push(...(data || []));
+      if (!data || data.length < 1000) break;
     }
-
-    const orders = ordersResult.data || [];
-    const paid = paidResult.data || [];
-    const pending = pendingResult.data || [];
-    const refunded = refundedResult.data || [];
-    const expenses = expensesResult.data || [];
-    const inventoryData = inventoryResult.data || [];
-
-    const sum = rows => rows.reduce((total,row)=>total+Number(row.amount||0),0);
-    const grossRevenue = sum(paid);
-    const refunds = sum(refunded);
-    const revenue = grossRevenue - refunds;
-    const costs = sum(expenses);
-    const net = revenue - costs;
-    const cancelled = orders.filter(o=>o.status==="cancelled").length;
-    const completed = orders.filter(o=>o.status==="completed").length;
-    const pendingAmount = sum(pending);
-
-    const aggregate = (rows,keyFn) => {
-      const map = new Map();
-      for (const row of rows) {
-        const key = keyFn(row.paid_at);
-        const current = map.get(key) || {count:0,amount:0};
-        current.count++;
-        current.amount += Number(row.amount||0);
-        map.set(key,current);
-      }
-      return [...map.entries()].sort((a,b)=>b[0].localeCompare(a[0]));
-    };
-    const daily = aggregate(paid,dateKey).slice(0,14);
-    const weekly = aggregate(paid,weekKey).slice(0,12);
-    const monthly = aggregate(paid,monthKey).slice(0,12);
 
     const products = [];
-    for (let i=0;i<orders.length;i+=100) {
-      const ids = orders.slice(i,i+100).map(order=>order.id);
-      if (!ids.length) continue;
-      const {data,error} = await supabase.from("order_items")
-        .select("product_name,quantity,order_id").in("order_id",ids).limit(10000);
-      if (error) throw error;
-      products.push(...(data||[]));
+    for (let i = 0; i < list.length; i += 100) {
+      const ids = list.slice(i, i + 100).map(order => order.id);
+      for (let offset = 0; ids.length; offset += 1000) {
+        const {data, error} = await supabase.from("order_items")
+          .select("product_name,quantity,line_total,order_id")
+          .in("order_id", ids)
+          .range(offset, offset + 999);
+        if (error) throw error;
+        products.push(...(data || []));
+        if (!data || data.length < 1000) break;
+      }
     }
-    const counts = {};
-    for (const item of products) {
-      const key = item.product_name || "Produto";
-      counts[key] = (counts[key]||0)+Number(item.quantity||0);
+    const total=list.reduce((s,o)=>s+Number(o.total||0),0);
+    const completed=list.filter(o=>o.status==="completed").length;
+    const counts={};
+    for(const item of products){
+      const key=item.product_name||"Produto";
+      counts[key]=(counts[key]||0)+Number(item.quantity||0);
     }
-    const best = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,10);
-    const low = inventoryData.filter(x=>Number(x.quantity)<=Number(x.minimum_quantity));
+    const best=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    const low=(inventoryData||[]).filter(x=>Number(x.quantity)<=Number(x.minimum_quantity));
 
-    const periodTable = (rows,mode) => table(
-      ["Período","Pagamentos","Faturamento recebido"],
-      rows.map(([key,value])=>`<tr><td>${esc(periodLabel(key,mode))}</td><td>${value.count}</td><td>${money(value.amount)}</td></tr>`).join(""),
-      "Nenhum pagamento recebido neste período."
-    );
-
-    root.innerHTML = `
-      <div class="ba-head"><h2>Faturamento e relatórios</h2><span class="ba-muted">Valores calculados a partir dos pagamentos</span></div>
+    root.innerHTML=`
+      <div class="ba-head"><h2>Relatórios</h2><span class="ba-muted">Período selecionado</span></div>
       <section class="ba-panel"><form class="ba-form" data-form="period">
         ${field("Data inicial","from",from||"","date")}
         ${field("Data final","to",to||"","date")}
         <div class="ba-actions wide"><button class="ba-btn" type="submit">Aplicar período</button></div>
       </form></section>
       <div class="ba-grid">
-        <article class="ba-card"><small>Faturamento recebido</small><strong>${money(revenue)}</strong><p class="ba-note">Pagamentos confirmados menos estornos</p></article>
-        <article class="ba-card"><small>Pagamentos pendentes</small><strong>${money(pendingAmount)}</strong><p class="ba-note">${pending.length} pagamento(s) aguardando confirmação</p></article>
-        <article class="ba-card"><small>Lucro líquido estimado</small><strong>${money(net)}</strong><p class="ba-note">Recebido após estornos menos despesas pagas</p></article>
-        <article class="ba-card"><small>Vendas pagas</small><strong>${paid.length}</strong></article>
-        <article class="ba-card"><small>Pedidos cancelados</small><strong>${cancelled}</strong></article>
+        <article class="ba-card"><small>Pedidos no período</small><strong>${list.length}</strong></article>
+        <article class="ba-card"><small>Valor total dos pedidos</small><strong>${money(total)}</strong></article>
         <article class="ba-card"><small>Pedidos concluídos</small><strong>${completed}</strong></article>
       </div>
-      <section class="ba-panel"><h3>Faturamento diário</h3>${periodTable(daily,"day")}</section>
-      <section class="ba-panel"><h3>Faturamento semanal</h3>${periodTable(weekly,"day")}</section>
-      <section class="ba-panel"><h3>Faturamento mensal</h3>${periodTable(monthly,"month")}</section>
-      <section class="ba-panel"><h3>Pagamentos pendentes</h3>
-        ${table(["Forma de pagamento","Valor","Data"],pending.map(p=>`<tr><td>${esc(p.method)}</td><td>${money(p.amount)}</td><td>${date(p.created_at)}</td></tr>`).join(""))}
-      </section>
-      <section class="ba-panel"><h3>Pedidos cancelados no período</h3>
-        ${table(["Pedido","Cliente","Data","Valor"],orders.filter(o=>o.status==="cancelled").map(o=>`<tr><td>#${esc(o.order_number)}</td><td>${esc(o.customer_name)}</td><td>${date(o.created_at)}</td><td>${money(o.total)}</td></tr>`).join(""))}
-      </section>
       <section class="ba-panel"><h3>Produtos mais vendidos</h3>
         ${table(["Produto","Quantidade"],best.map(([name,qty])=>`<tr><td>${esc(name)}</td><td>${qty}</td></tr>`).join(""))}
       </section>
       <section class="ba-panel"><h3>Pedidos recentes do período</h3>
-        ${table(["Pedido","Cliente","Data","Status","Total"],orders.slice(0,100).map(o=>`<tr><td>#${esc(o.order_number)}</td><td>${esc(o.customer_name)}</td><td>${date(o.created_at)}</td><td>${esc(o.status)}</td><td>${money(o.total)}</td></tr>`).join(""))}
+        ${table(["Pedido","Cliente","Data","Status","Total"],list.slice(0,100).map(o=>`<tr><td>#${o.order_number}</td><td>${esc(o.customer_name)}</td><td>${date(o.created_at)}</td><td>${esc(o.status)}</td><td>${money(o.total)}</td></tr>`).join(""))}
       </section>
       <section class="ba-panel"><h3>Estoque no limite ou abaixo do mínimo</h3>
         ${table(["Produto","SKU","Saldo","Mínimo"],low.map(x=>`<tr><td>${esc(x.products?.name||"Produto")}</td><td>${esc(x.products?.sku||"—")}</td><td>${x.quantity}</td><td>${x.minimum_quantity}</td></tr>`).join(""))}
       </section>`;
     root.querySelector('[data-form="period"]').addEventListener("submit",e=>{
       e.preventDefault();
-      const v = new FormData(e.currentTarget);
+      const v=new FormData(e.currentTarget);
       load(v.get("from"),v.get("to")).catch(err=>notify(err.message));
     });
   }
-
-  const today = new Date();
-  const from = new Date(today.getFullYear(),today.getMonth(),1).toISOString().slice(0,10);
+  const today=new Date();
+  const from=new Date(today.getFullYear(),today.getMonth(),1).toISOString().slice(0,10);
   load(from,today.toISOString().slice(0,10)).catch(e=>errorView(root,e,()=>load(from,today.toISOString().slice(0,10))));
 }
 

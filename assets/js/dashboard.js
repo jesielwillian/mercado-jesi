@@ -242,9 +242,11 @@ async function loadOverview() {
     await Promise.all([
       supabase
         .from("orders")
-        .select("id,order_number,customer_name,total,status,created_at", {
-          count: "exact",
-        })
+        .select(
+          "id,order_number,customer_name,total,status,created_at,deleted_at",
+          { count: "exact" },
+        )
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(5),
 
@@ -269,59 +271,85 @@ async function loadOverview() {
 
   if (errors.length) {
     console.error("Falha ao carregar indicadores reais:", errors);
-
-    notify(
-      "Não foi possível carregar todos os indicadores. Confira as políticas RLS.",
-    );
-
-    return;
   }
 
   const orders = ordersResult.data || [];
+  const sales = todaySalesResult.data || [];
+  const inventory = inventoryResult.data || [];
 
-  const revenue = (todaySalesResult.data || []).reduce(
-    (sum, order) => sum + Number(order.amount || 0),
+  const revenue = sales.reduce(
+    (sum, payment) => sum + Number(payment.amount || 0),
     0,
   );
 
-  document.querySelector("#metric-revenue").textContent = formatMoney(revenue);
-
-  document.querySelector("#metric-revenue-note").textContent =
-    `${(todaySalesResult.data || []).length} pagamento(s) recebido(s) hoje`;
-
-  document.querySelector("#metric-orders").textContent = String(
-    ordersResult.count ?? 0,
-  );
-
-  document.querySelector("#metric-products").textContent = String(
-    productsResult.count ?? 0,
-  );
-
-  const inventory = inventoryResult.data || [];
-
-  document.querySelector("#metric-low-stock").textContent = String(
-    inventory.filter(
-      (item) => Number(item.quantity) <= Number(item.minimum_quantity),
-    ).length,
-  );
-
+  const revenueEl = document.querySelector("#metric-revenue");
+  const revenueNoteEl = document.querySelector("#metric-revenue-note");
+  const ordersEl = document.querySelector("#metric-orders");
+  const productsEl = document.querySelector("#metric-products");
+  const stockEl = document.querySelector("#metric-low-stock");
   const tbody = document.querySelector("#recent-orders");
 
-  tbody.innerHTML = orders.length
-    ? orders
-        .map(
-          (order) => `
-        <tr>
-          <td>#${order.order_number}</td>
-          <td>${String(order.customer_name || "Cliente").replace(/[&<>"']/g, "")}</td>
-          <td>${formatDate(order.created_at)}</td>
-          <td>${formatMoney(order.total)}</td>
-          <td>${order.status}</td>
-        </tr>
-      `,
-        )
-        .join("")
-    : '<tr><td colspan="5">Nenhum pedido registrado.</td></tr>';
+  if (!todaySalesResult.error) {
+    if (revenueEl) revenueEl.textContent = formatMoney(revenue);
+    if (revenueNoteEl) {
+      revenueNoteEl.textContent = `${sales.length} pagamento(s) recebido(s) hoje`;
+    }
+  }
+
+  if (!ordersResult.error && ordersEl) {
+    ordersEl.textContent = String(ordersResult.count ?? 0);
+  }
+
+  if (!productsResult.error && productsEl) {
+    productsEl.textContent = String(productsResult.count ?? 0);
+  }
+
+  if (!inventoryResult.error && stockEl) {
+    const totalStock = inventory.reduce(
+      (total, item) => total + Number(item.quantity || 0),
+      0,
+    );
+    stockEl.textContent = String(totalStock);
+  }
+
+  if (!ordersResult.error && tbody) {
+    const statusLabels = {
+      pending: "Pendente",
+      confirmed: "Confirmado",
+      preparing: "Em preparação",
+      ready: "Pronto",
+      out_for_delivery: "Saiu para entrega",
+      completed: "Concluído",
+      cancelled: "Cancelado",
+    };
+
+    tbody.innerHTML = orders.length
+      ? orders.map((order) => {
+          const safeOrderNumber = String(order.order_number ?? "").replace(/[&<>"']/g, "");
+          const safeCustomerName = String(order.customer_name || "Cliente").replace(/[&<>"']/g, "");
+          const status = statusLabels[order.status] || "Desconhecido";
+          const statusClass = order.status === "pending"
+            ? "pending"
+            : ["preparing", "out_for_delivery"].includes(order.status)
+              ? "preparing"
+              : "done";
+
+          return `
+            <tr>
+              <td>#${safeOrderNumber}</td>
+              <td>${safeCustomerName}</td>
+              <td>${formatDate(order.created_at)}</td>
+              <td>${formatMoney(order.total)}</td>
+              <td><span class="status ${statusClass}">${status}</span></td>
+            </tr>
+          `;
+        }).join("")
+      : '<tr><td colspan="5">Nenhum pedido registrado.</td></tr>';
+  }
+
+  if (errors.length) {
+    notify("Alguns indicadores não puderam ser atualizados. Consulte o console para identificar a consulta com erro.");
+  }
 }
 
 function showModule(key) {

@@ -48,7 +48,6 @@ const styles = `
   .cash-button:disabled{opacity:.55;cursor:wait}
   .cash-button.secondary{background:rgba(255,255,255,.08);color:var(--text,#f4f5f7)}
   .cash-button.danger{background:#a93242;color:white}
-  .cash-button.clear{background:rgba(169,50,66,.10);color:#b42332;border:1px solid rgba(169,50,66,.22)}
   .cash-table-wrap{overflow-x:auto}
   .cash-table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:13px}
   .cash-table th,.cash-table td{text-align:left;padding:12px 10px;border-bottom:1px solid var(--border,rgba(255,255,255,.07))}
@@ -191,7 +190,6 @@ export function mountCashAdmin({ content, notify }) {
           "id, opening_amount, closing_amount, opened_at, closed_at, status",
         )
         .eq("status", "closed")
-        .is("archived_at", null)
         .order("closed_at", { ascending: false })
         .limit(5);
 
@@ -217,13 +215,7 @@ export function mountCashAdmin({ content, notify }) {
         </div>
 
         <div class="cash-panel">
-          <div class="cash-header">
-            <div>
-              <h3>Últimos caixas fechados</h3>
-              <div class="cash-muted">Limpar oculta os resultados desta lista sem apagar o histórico financeiro.</div>
-            </div>
-            ${(history || []).length ? `<button class="cash-button clear" type="button" data-action="clear-closed-results">Limpar resultados</button>` : ""}
-          </div>
+          <h3>Últimos caixas fechados</h3>
           <div class="cash-table-wrap">
             <table class="cash-table">
               <thead><tr><th>Abertura</th><th>Fechamento</th><th>Valor inicial</th><th>Valor contado</th></tr></thead>
@@ -428,39 +420,19 @@ export function mountCashAdmin({ content, notify }) {
   }
 
   root.addEventListener("click", async (event) => {
-    const button = event.target.closest("[data-action]");
-    const action = button?.dataset.action;
+    const button = event.target.closest('[data-action="refresh"]');
     if (!button || busy) return;
-
-    if (action === "clear-closed-results") {
-      const confirmed = window.confirm(
-        "Limpar os resultados dos caixas fechados?\n\nOs registros serão ocultados desta lista, mas as movimentações e os dados financeiros continuarão salvos no banco de dados."
-      );
-      if (!confirmed) return;
-    } else if (action !== "refresh") {
-      return;
-    }
 
     busy = true;
     button.disabled = true;
 
     try {
-      if (action === "clear-closed-results") {
-        const { error } = await supabase
-          .from("cash_registers")
-          .update({ archived_at: new Date().toISOString() })
-          .eq("status", "closed")
-          .is("archived_at", null);
-        if (error) throw error;
-        notify("Resultados ocultados. O histórico financeiro foi preservado.");
-      }
       await loadData();
     } catch (error) {
       console.error(error);
-      notify(error.message || "Não foi possível concluir a operação.");
+      notify(error.message || "Não foi possível atualizar o caixa.");
     } finally {
       busy = false;
-      if (button.isConnected) button.disabled = false;
     }
   });
 

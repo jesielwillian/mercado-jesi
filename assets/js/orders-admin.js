@@ -89,10 +89,6 @@ function addStyles() {
       font:inherit; font-weight:700; cursor:pointer;
     }
     .orders-btn-primary { background:#176b43; color:white; }
-    .orders-btn-danger { background:#fff0f0; color:#b42318; }
-    .orders-btn-delete { background:#b42318; color:#fff; }
-    .orders-btn-muted { background:var(--input-bg,#f3f5f3); color:inherit; }
-    .orders-toolbar select { min-width:170px; }
     .orders-table-wrap { overflow-x:auto; }
     .orders-table {
       width:100%; min-width:760px;
@@ -219,9 +215,12 @@ function render() {
     content.querySelector("#orders-view")?.value || "active";
 
   const filtered = orders.filter((order) => {
-    const matchesView = selectedView === "archived"
-      ? Boolean(order.archived_at)
-      : !order.archived_at;
+    const matchesView = selectedView === "deleted"
+      ? Boolean(order.deleted_at)
+      : selectedView === "archived"
+        ? !order.deleted_at && Boolean(order.archived_at)
+        : !order.deleted_at && !order.archived_at;
+
     const matchesQuery =
       `${order.order_number} ${order.customer_name} ${order.customer_phone}`
         .toLocaleLowerCase("pt-BR")
@@ -261,12 +260,6 @@ function render() {
             <button type="button" data-order-details="${escapeHTML(order.id)}">
               Detalhes
             </button>
-            ${order.archived_at
-              ? `<button type="button" class="orders-btn-muted" data-restore-order="${escapeHTML(order.id)}">Restaurar</button>`
-              : `<button type="button" class="orders-btn-danger" data-archive-order="${escapeHTML(order.id)}">Arquivar</button>`}
-            ${(order.payments || []).length === 0
-              ? `<button type="button" class="orders-btn-delete" data-delete-order="${escapeHTML(order.id)}">Excluir</button>`
-              : `<span class="orders-muted" title="Pedidos com registro de pagamento não podem ser excluídos">Com histórico financeiro</span>`}
           </td>
         </tr>
       `).join("")
@@ -275,9 +268,7 @@ function render() {
           <td colspan="7" class="orders-empty">
             ${query || selectedStatus
               ? "Nenhum pedido corresponde aos filtros."
-              : (selectedView === "archived"
-                ? "Nenhum pedido arquivado."
-                : "Nenhum pedido registrado ainda.")}
+              : "Nenhum pedido registrado ainda."}
           </td>
         </tr>
       `;
@@ -323,9 +314,10 @@ function renderPage() {
             type="search"
             placeholder="Buscar por número, cliente ou telefone..."
           >
-          <select id="orders-view" aria-label="Exibição dos pedidos">
+          <select id="orders-view" aria-label="Visualização dos pedidos">
             <option value="active">Pedidos ativos</option>
             <option value="archived">Pedidos arquivados</option>
+            <option value="deleted">Pedidos excluídos</option>
           </select>
           <select id="orders-filter">
             <option value="">Todos os status</option>
@@ -386,7 +378,10 @@ function renderPage() {
 }
 
 function updateSummary() {
-  const activeOrders = orders.filter((order) => !order.archived_at);
+  const activeOrders = orders.filter(
+    (order) => !order.deleted_at && !order.archived_at,
+  );
+
   content.querySelector("#orders-total").textContent = activeOrders.length;
 
   content.querySelector("#orders-pending").textContent =
@@ -433,6 +428,7 @@ async function loadOrders() {
         created_at,
         updated_at,
         archived_at,
+        deleted_at,
         order_items (
           id,
           product_name,
@@ -602,83 +598,9 @@ function openDetails(id) {
   `;
 }
 
-async function handleTableAction(event) {
-  const archiveButton = event.target.closest("[data-archive-order]");
-  const restoreButton = event.target.closest("[data-restore-order]");
-  const deleteButton = event.target.closest("[data-delete-order]");
-  const detailsButton = event.target.closest("[data-order-details]");
-
-  if (deleteButton) {
-    const order = orders.find((item) => item.id === deleteButton.dataset.deleteOrder);
-    if (!order) return;
-    if ((order.payments || []).length > 0) {
-      notify("Este pedido possui registro de pagamento e não pode ser excluído. Arquive-o para preservar o histórico.");
-      return;
-    }
-    const label = `pedido #${order.order_number}`;
-    if (!window.confirm(`Excluir definitivamente o ${label}? Esta ação não pode ser desfeita. Só é permitido excluir pedidos sem registros financeiros.`)) return;
-
-    deleteButton.disabled = true;
-    try {
-      const { data, error } = await supabase.rpc("delete_order_without_financial_history", {
-        p_order_id: order.id,
-      });
-      if (error) throw error;
-      if (data?.success === false) throw new Error(data.message || "Pedido protegido por histórico financeiro.");
-      orders = orders.filter((item) => item.id !== order.id);
-      updateSummary();
-      render();
-      notify(`Pedido #${order.order_number} excluído definitivamente.`);
-    } catch (error) {
-      console.error("Erro ao excluir pedido:", error);
-      notify(`Não foi possível excluir o pedido: ${error.message || "erro desconhecido"}`);
-      deleteButton.disabled = false;
-    }
-    return;
-  }
-
-  if (archiveButton || restoreButton) {
-    const button = archiveButton || restoreButton;
-    const order = orders.find((item) => item.id === button.dataset.archiveOrder
-      || item.id === button.dataset.restoreOrder);
-    if (!order) return;
-
-    const restoring = Boolean(restoreButton);
-    const action = restoring ? "restaurar" : "arquivar";
-    const label = `pedido #${order.order_number}`;
-
-    if (!window.confirm(`Deseja ${action} o ${label}? ${restoring
-      ? "Ele voltará para a lista de pedidos ativos."
-      : "Ele sairá da lista ativa, mas o histórico e os dados financeiros serão preservados."}`)) {
-      return;
-    }
-
-    button.disabled = true;
-    const archivedAt = restoring ? null : new Date().toISOString();
-
-    try {
-      const { error } = await supabase
-        .from("orders")
-        .update({ archived_at: archivedAt, updated_at: new Date().toISOString() })
-        .eq("id", order.id);
-
-      if (error) throw error;
-
-      order.archived_at = archivedAt;
-      notify(restoring
-        ? `Pedido #${order.order_number} restaurado.`
-        : `Pedido #${order.order_number} arquivado.`);
-      updateSummary();
-      render();
-    } catch (error) {
-      console.error(`Erro ao ${action} pedido:`, error);
-      notify(`Não foi possível ${action} o pedido: ${error.message || "erro desconhecido"}`);
-      button.disabled = false;
-    }
-    return;
-  }
-
-  if (detailsButton) openDetails(detailsButton.dataset.orderDetails);
+function handleTableAction(event) {
+  const button = event.target.closest("[data-order-details]");
+  if (button) openDetails(button.dataset.orderDetails);
 }
 
 async function handleModalClick(event) {
