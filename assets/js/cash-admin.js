@@ -7,6 +7,22 @@ const money = (value) =>
     currency: "BRL",
   });
 
+// Converte valores digitados no padrão brasileiro (100,00 / 1.000,00)
+// e também aceita o padrão decimal com ponto (100.00).
+const parseMoney = (value) => {
+  let raw = String(value ?? "").trim().replace(/^R\$\s*/i, "").replace(/\s/g, "");
+  if (!raw) return Number.NaN;
+
+  if (raw.includes(",")) {
+    raw = raw.replace(/\./g, "").replace(",", ".");
+  } else if (/^\d{1,3}(?:\.\d{3})+$/.test(raw)) {
+    raw = raw.replace(/\./g, "");
+  }
+
+  if (!/^\d+(?:\.\d{1,2})?$/.test(raw)) return Number.NaN;
+  return Number(raw);
+};
+
 const dateTime = (value) =>
   value
     ? new Date(value).toLocaleString("pt-BR", {
@@ -209,7 +225,7 @@ export function mountCashAdmin({ content, notify }) {
           <h3>Abrir novo caixa</h3>
           <form class="cash-form" data-form="open">
             <label>Valor inicial em dinheiro (R$)
-              <input name="opening_amount" type="number" min="0" step="0.01" value="0.00" required>
+              <input name="opening_amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" value="0,00" required>
             </label>
             <button class="cash-button" type="submit">Abrir caixa</button>
           </form>
@@ -290,7 +306,7 @@ export function mountCashAdmin({ content, notify }) {
               <input name="description" type="text" maxlength="160" placeholder="Ex.: Pagamento de fornecedor" required>
             </label>
             <label>Valor (R$)
-              <input name="amount" type="number" min="0.01" step="0.01" placeholder="0,00" required>
+              <input name="amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" required>
             </label>
             <div class="cash-notice">As movimentações manuais são registradas em dinheiro e afetam o saldo físico do caixa.</div>
             <button class="cash-button" type="submit">Registrar movimentação</button>
@@ -307,7 +323,7 @@ export function mountCashAdmin({ content, notify }) {
           <div class="cash-summary-line"><span>Saldo esperado</span><strong>${money(t.expected)}</strong></div>
           <form class="cash-form" data-form="close" style="margin-top:18px">
             <label>Dinheiro contado no caixa (R$)
-              <input name="closing_amount" type="number" min="0" step="0.01" placeholder="Informe o valor contado" required>
+              <input name="closing_amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" required>
             </label>
             <button class="cash-button danger" type="submit">Conferir e fechar caixa</button>
           </form>
@@ -330,7 +346,7 @@ export function mountCashAdmin({ content, notify }) {
   }
 
   async function submitOpen(form) {
-    const amount = Number(new FormData(form).get("opening_amount"));
+    const amount = parseMoney(new FormData(form).get("opening_amount"));
 
     if (!Number.isFinite(amount) || amount < 0) {
       throw new Error("Informe um valor inicial válido.");
@@ -352,7 +368,7 @@ export function mountCashAdmin({ content, notify }) {
     const values = new FormData(form);
     const type = values.get("transaction_type");
     const description = String(values.get("description") || "").trim();
-    const amount = Number(values.get("amount"));
+    const amount = parseMoney(values.get("amount"));
 
     if (!["expense", "withdrawal", "deposit"].includes(type)) {
       throw new Error("Tipo de movimentação inválido.");
@@ -384,10 +400,7 @@ export function mountCashAdmin({ content, notify }) {
     if (!register) throw new Error("Não existe um caixa aberto.");
 
     const rawAmount = new FormData(form).get("closing_amount");
-
-    const amount = Number(
-      String(rawAmount).trim().replace(/\./g, "").replace(",", "."),
-    );
+    const amount = parseMoney(rawAmount);
 
     if (!Number.isFinite(amount) || amount < 0) {
       throw new Error("Informe o valor contado corretamente.");
