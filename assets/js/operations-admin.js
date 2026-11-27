@@ -50,7 +50,7 @@ const money = (value) =>
 function styles() {
   const style = document.createElement("style");
   style.dataset.operationsStyles = "true";
-  style.textContent = `.ops-shell{display:grid;gap:20px}.ops-panel{background:#fff;border:1px solid #e7ece8;border-radius:18px;padding:22px;box-shadow:0 8px 24px rgba(28,52,38,.05)}.ops-panel h3{margin:0 0 16px;font-size:17px;color:#20352b}.ops-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.ops-grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.ops-field{display:grid;gap:7px;color:#506057;font-size:12px;font-weight:700}.ops-field input,.ops-field select,.ops-field textarea{width:100%;box-sizing:border-box;border:1px solid #dce5df;border-radius:11px;background:#fbfdfb;color:#20352b;padding:11px 12px;font:inherit;outline:none;transition:.2s}.ops-field input:focus,.ops-field select:focus,.ops-field textarea:focus{border-color:#8eb7a0;box-shadow:0 0 0 3px rgba(86,145,110,.1);background:#fff}.ops-field textarea{min-height:90px;resize:vertical}.ops-actions{display:flex;flex-wrap:wrap;gap:9px;align-items:center}.ops-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 14px;border:1px solid #dce5df;border-radius:10px;background:#fff;color:#31533f;font:inherit;font-size:12px;font-weight:800;cursor:pointer;transition:.2s ease}.ops-btn:hover{transform:translateY(-1px);box-shadow:0 7px 16px rgba(30,70,45,.09)}.ops-btn.primary{background:#315f46;border-color:#315f46;color:#fff}.ops-btn.primary:hover{background:#264b37;border-color:#264b37}.ops-btn.danger{background:#fff8f8;border-color:#ead7d7;color:#b45151}.ops-btn.danger:hover{background:#b45151;border-color:#b45151;color:#fff}.ops-btn:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}.ops-muted{margin:6px 0 0;color:#7a8780;font-size:11px;line-height:1.6}.ops-table-wrap{overflow:auto}.ops-table{width:100%;border-collapse:collapse;min-width:760px}.ops-table th{padding:11px 10px;text-align:left;font-size:10px;letter-spacing:.05em;color:#7a8780;border-bottom:1px solid #e7ece8}.ops-table td{padding:13px 10px;border-bottom:1px solid #edf1ed;color:#34483d;font-size:12px;vertical-align:middle}.ops-table tr:last-child td{border-bottom:0}.ops-section-heading{display:flex;justify-content:space-between;align-items:center;gap:18px;margin:0 0 16px}.ops-section-heading h3{margin:0}.ops-section-heading p{margin:5px 0 0}.ops-clear-history{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 14px;border:1px solid #ead7d7;border-radius:10px;background:#fff8f8;color:#b45151;font:inherit;font-size:11px;font-weight:800;cursor:pointer;transition:.2s ease}.ops-clear-history:hover{background:#b45151;border-color:#b45151;color:#fff;transform:translateY(-1px);box-shadow:0 8px 18px rgba(180,81,81,.16)}.ops-clear-history:disabled{opacity:.6;cursor:not-allowed;transform:none}.ops-items{display:grid;gap:7px;margin-top:12px}.ops-item{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid #edf1ed;border-radius:10px;background:#fafcfa}.ops-camera{position:relative;overflow:hidden;border-radius:18px;background:#dcebed;border:1px solid #d6e4e2;min-height:270px;display:grid;place-items:center}.ops-camera video{width:100%;height:100%;max-height:420px;object-fit:cover;display:block}.ops-camera-empty{padding:30px;text-align:center;color:#60746b;font-size:13px}.ops-badge{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;background:#eef5ef;color:#315f46;font-size:10px;font-weight:800}.ops-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.ops-stat{padding:15px;border:1px solid #e7ece8;border-radius:14px;background:#fbfdfb}.ops-stat strong{display:block;margin-top:5px;font-size:19px;color:#21392b}.ops-kanban{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:14px;overflow:auto}.ops-column{background:#f8faf8;border:1px solid #e7ece8;border-radius:15px;padding:12px}.ops-column h4{margin:0 0 10px;font-size:12px;color:#385446}.ops-card{padding:12px;margin-bottom:8px;border:1px solid #e4ebe6;border-radius:12px;background:#fff}.ops-card:last-child{margin-bottom:0}.ops-labels{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}.ops-label{padding:16px;border:1px dashed #cbd9d0;border-radius:12px;background:#fbfdfb}.ops-barcode{font-family:monospace;letter-spacing:2px;font-size:20px;text-align:center;padding:10px}.ops-empty{padding:28px;text-align:center;color:#7a8780}.ops-spinner{animation:opsSpin .8s linear infinite}@keyframes opsSpin{to{transform:rotate(360deg)}}@media(max-width:900px){.ops-grid,.ops-grid-3,.ops-stat-grid{grid-template-columns:1fr 1fr}.ops-kanban{grid-template-columns:repeat(4,280px)}}@media(max-width:640px){.ops-grid,.ops-grid-3,.ops-stat-grid{grid-template-columns:1fr}.ops-panel{padding:16px}.ops-section-heading{align-items:flex-start;flex-direction:column}.ops-clear-history{width:100%}}`;
+  style.textContent = `.ops-shell{display:grid;gap:20px}.ops-panel{background:#fff;border:1px solid #e7ece8;border-radius:18px;padding:22px;box-shadow:0 8px 24px rgba(28,52,38,.05)}.ops-panel h3{margin:0 0 16px;font-size:17px;color:#20352b}.ops-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.ops-grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.ops-field{display:grid;gap:7px;color:#506057;font-size:12px;font-weight:700}.ops-field input,.ops-field select,.ops-field textarea{width:100%;box-sizing:border-box;border:1px solid #dce5df;border-radius:11px;background:#fbfdfb;color:#20352b;padding:11px 12px;font:inherit;outline:none;transition:.2s}.ops-field input:focus,.ops-field select:focus,.ops-field textarea:focus{border-color:#8eb7a0;box-shadow:0 0 0 3px rgba(86,145,110,.1);background:#fff}.ops-field textarea{min-height:90px;resize:vertical}.ops-actions{display:flex;flex-wrap:wrap;gap:9px;align-items:center}.ops-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 14px;border:1px solid #dce5df;border-radius:10px;background:#fff;color:#31533f;font:inherit;font-size:12px;font-weight:800;cursor:pointer;transition:.2s ease}.ops-btn:hover{transform:translateY(-1px);box-shadow:0 7px 16px rgba(30,70,45,.09)}.ops-btn.primary{background:#315f46;border-color:#315f46;color:#fff}.ops-btn.primary:hover{background:#264b37;border-color:#264b37}.ops-btn.danger{background:#fff8f8;border-color:#ead7d7;color:#b45151}.ops-btn.danger:hover{background:#b45151;border-color:#b45151;color:#fff}.ops-btn:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}.ops-muted{margin:6px 0 0;color:#7a8780;font-size:11px;line-height:1.6}.ops-table-wrap{overflow:auto}.ops-table{width:100%;border-collapse:collapse;min-width:760px}.ops-table th{padding:11px 10px;text-align:left;font-size:10px;letter-spacing:.05em;color:#7a8780;border-bottom:1px solid #e7ece8}.ops-table td{padding:13px 10px;border-bottom:1px solid #edf1ed;color:#34483d;font-size:12px;vertical-align:middle}.ops-table tr:last-child td{border-bottom:0}.ops-section-heading{display:flex;justify-content:space-between;align-items:center;gap:18px;margin:0 0 16px}.ops-section-heading h3{margin:0}.ops-section-heading p{margin:5px 0 0}.ops-clear-history{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 14px;border:1px solid #ead7d7;border-radius:10px;background:#fff8f8;color:#b45151;font:inherit;font-size:11px;font-weight:800;cursor:pointer;transition:.2s ease}.ops-clear-history:hover{background:#b45151;border-color:#b45151;color:#fff;transform:translateY(-1px);box-shadow:0 8px 18px rgba(180,81,81,.16)}.ops-clear-history:disabled{opacity:.6;cursor:not-allowed;transform:none}.ops-items{margin-top:12px}.ops-camera{position:relative;overflow:hidden;border-radius:18px;background:#dcebed;border:1px solid #d6e4e2;min-height:270px;display:grid;place-items:center}.ops-camera video{width:100%;height:100%;max-height:420px;object-fit:cover;display:block}.ops-camera-empty{padding:30px;text-align:center;color:#60746b;font-size:13px}.ops-badge{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;background:#eef5ef;color:#315f46;font-size:10px;font-weight:800}.ops-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.ops-stat{padding:15px;border:1px solid #e7ece8;border-radius:14px;background:#fbfdfb}.ops-stat strong{display:block;margin-top:5px;font-size:19px;color:#21392b}.ops-kanban{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:14px;overflow:auto}.ops-column{background:#f8faf8;border:1px solid #e7ece8;border-radius:15px;padding:12px}.ops-column h4{margin:0 0 10px;font-size:12px;color:#385446}.ops-card{padding:12px;margin-bottom:8px;border:1px solid #e4ebe6;border-radius:12px;background:#fff}.ops-card:last-child{margin-bottom:0}.ops-labels{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}.ops-label{padding:16px;border:1px dashed #cbd9d0;border-radius:12px;background:#fbfdfb}.ops-barcode{font-family:monospace;letter-spacing:2px;font-size:20px;text-align:center;padding:10px}.ops-empty{padding:28px;text-align:center;color:#7a8780}@media(max-width:900px){.ops-grid,.ops-grid-3,.ops-stat-grid{grid-template-columns:1fr 1fr}.ops-kanban{grid-template-columns:repeat(4,280px)}}@media(max-width:640px){.ops-grid,.ops-grid-3,.ops-stat-grid{grid-template-columns:1fr}.ops-panel{padding:16px}.ops-section-heading{align-items:flex-start;flex-direction:column}.ops-clear-history{width:100%}}`;
   document.head.appendChild(style);
 }
 export function mountOperationsAdmin({ content, notify = () => {} }) {
@@ -89,7 +89,7 @@ export function mountOperationsAdmin({ content, notify = () => {} }) {
       .select("id,name")
       .order("name");
     if (productError) throw productError;
-    view.innerHTML = `${tabsHTML()}<div class="ops-panel"><h3>Novo pedido de compra</h3><form id="ops-purchase-form"><div class="ops-grid"><label class="ops-field">Fornecedor<select name="supplier_id" id="ops-purchase-supplier" required><option value="">Selecione...</option>${(suppliers || []).map((item) => `<option value="${item.id}">${esc(item.name)}</option>`).join("")}</select></label><label class="ops-field">Previsão de entrega<input name="expected_at" type="date"></label></div><label class="ops-field" style="margin-top:14px">Observações<textarea name="notes" placeholder="Observações do pedido"></textarea></label><div class="ops-grid-3" style="margin-top:14px"><label class="ops-field">Produto<select id="ops-purchase-product"><option value="">Selecione...</option>${(products || []).map((item) => `<option value="${item.id}">${esc(item.name)}</option>`).join("")}</select></label><label class="ops-field">Quantidade<input id="ops-purchase-qty" type="number" min="0.001" step="0.001" value="1"></label><label class="ops-field">Custo unitário (R$)<input id="ops-purchase-cost" type="number" min="0.01" step="0.01" inputmode="decimal" value="" placeholder="0,00" required></label></div><div class="ops-grid" style="margin-top:14px"><label class="ops-field">Validade (opcional)<input id="ops-purchase-expiry" type="date"></label><label class="ops-field">Código do lote<input id="ops-purchase-lot" type="text" placeholder="Ex.: LOTE-001"></label></div><div class="ops-actions" style="margin-top:14px"><button type="button" class="ops-btn" id="ops-add-purchase-item"><i class="fa-solid fa-plus"></i>Adicionar item</button></div><div id="ops-purchase-items" class="ops-items"></div><div class="ops-actions" style="margin-top:18px"><button type="submit" class="ops-btn primary"><i class="fa-solid fa-floppy-disk"></i>Salvar pedido de compra</button></div></form></div><div class="ops-panel"><div class="ops-section-heading"><div><h3>Pedidos de compra recentes</h3><p class="ops-muted">Histórico dos pedidos de compra realizados.</p></div><button type="button" class="ops-clear-history" id="ops-clear-purchases"><i class="fa-solid fa-trash-can"></i>Limpar histórico</button></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>FORNECEDOR</th><th>DATA</th><th>STATUS</th><th>ITENS</th><th>VALOR</th><th>AÇÃO</th></tr></thead><tbody>${(orders || []).map((order) => `<tr><td>${esc(order.suppliers?.name || "Fornecedor")}</td><td>${dateBR(order.expected_at)}</td><td><span class="ops-badge">${esc(purchaseStatusLabels[order.status] || order.status)}</span></td><td>${(order.purchase_order_items || []).length}</td><td>${money(order.subtotal)}</td><td>${order.status === "received" ? "Recebido" : `<button class="ops-btn primary" data-receive-purchase="${order.id}"><i class="fa-solid fa-box-open"></i>Receber e atualizar estoque</button>`}</td></tr>`).join("") || `<tr><td colspan="6"><div class="ops-empty">Nenhum pedido de compra cadastrado.</div></td></tr>`}</tbody></table></div><p class="ops-muted">O recebimento é atômico: atualiza estoque, custo e lote de validade em uma única transação.</p></div>`;
+    view.innerHTML = `${tabsHTML()}<div class="ops-panel"><h3>Novo pedido de compra</h3><form id="ops-purchase-form"><div class="ops-grid"><label class="ops-field">Fornecedor<select name="supplier_id" id="ops-purchase-supplier" required><option value="">Selecione...</option>${(suppliers || []).map((item) => `<option value="${item.id}">${esc(item.name)}</option>`).join("")}</select></label><label class="ops-field">Previsão de entrega<input name="expected_at" type="date"></label></div><label class="ops-field" style="margin-top:14px">Observações<textarea name="notes" placeholder="Observações do pedido"></textarea></label><div class="ops-grid" style="margin-top:14px"><label class="ops-field">Produto<select id="ops-purchase-product"><option value="">Selecione...</option>${(products || []).map((item) => `<option value="${item.id}">${esc(item.name)}</option>`).join("")}</select></label><label class="ops-field">Quantidade<input id="ops-purchase-qty" type="number" min="0.001" step="0.001" value="1"></label></div><div class="ops-grid" style="margin-top:14px"><label class="ops-field">Custo unitário (R$)<input id="ops-purchase-cost" type="number" min="0.01" step="0.01" inputmode="decimal" value="" placeholder="0,00" required></label><label class="ops-field">Validade (opcional)<input id="ops-purchase-expiry" type="date"></label></div><label class="ops-field" style="margin-top:14px">Código do lote<input id="ops-purchase-lot" type="text" placeholder="Ex.: LOTE-001"></label><div class="ops-actions" style="margin-top:14px"><button type="button" class="ops-btn" id="ops-add-purchase-item"><i class="fa-solid fa-plus"></i>Adicionar item</button></div><div id="ops-purchase-items" class="ops-items"></div><div class="ops-actions" style="margin-top:18px"><button type="submit" class="ops-btn primary"><i class="fa-solid fa-floppy-disk"></i>Salvar pedido de compra</button></div></form></div><div class="ops-panel"><div class="ops-section-heading"><div><h3>Pedidos de compra recentes</h3><p class="ops-muted">Histórico dos pedidos de compra realizados.</p></div><button type="button" class="ops-clear-history" id="ops-clear-purchases"><i class="fa-solid fa-trash-can"></i>Limpar histórico</button></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>FORNECEDOR</th><th>DATA</th><th>STATUS</th><th>ITENS</th><th>VALOR</th><th>AÇÃO</th></tr></thead><tbody>${(orders || []).map((order) => `<tr><td>${esc(order.suppliers?.name || "Fornecedor")}</td><td>${dateBR(order.expected_at)}</td><td><span class="ops-badge">${esc(purchaseStatusLabels[order.status] || order.status)}</span></td><td>${(order.purchase_order_items || []).length}</td><td>${money(order.subtotal)}</td><td>${order.status === "received" ? "Recebido" : `<button class="ops-btn primary" data-receive-purchase="${order.id}"><i class="fa-solid fa-box-open"></i>Receber e atualizar estoque</button>`}</td></tr>`).join("") || `<tr><td colspan="6"><div class="ops-empty">Nenhum pedido de compra cadastrado.</div></td></tr>`}</tbody></table></div><p class="ops-muted">O recebimento é atômico: atualiza estoque, custo e lote de validade em uma única transação.</p></div>`;
     view.querySelectorAll("[data-ops-tab]").forEach((button) =>
       button.addEventListener("click", async () => {
         currentTab = button.dataset.opsTab;
@@ -180,22 +180,20 @@ export function mountOperationsAdmin({ content, notify = () => {} }) {
       itemsRoot.innerHTML = items
         .map(
           (item, index) =>
-            `<div class="ops-item"><div>${esc(item.product_name)}<div class="ops-muted">${item.quantity} × ${money(item.unit_cost)}${item.lot_code ? ` · Lote ${esc(item.lot_code)}` : ""}${item.expiry_date ? ` · Validade ${dateBR(item.expiry_date)}` : ""}</div></div><button type="button" class="ops-btn danger" data-remove-purchase-item="${index}"><i class="fa-solid fa-trash"></i></button></div>`,
+            `<div style="padding:8px 0;border-bottom:1px solid #edf1ed;display:flex;justify-content:space-between;align-items:center;gap:10px">${esc(item.product_name)}: <strong>${item.quantity}</strong> × <strong>${money(item.unit_cost)}</strong>${item.lot_code ? ` · Lote ${esc(item.lot_code)}` : ""}${item.expiry_date ? ` · Validade ${dateBR(item.expiry_date)}` : ""}<button type="button" class="ops-btn danger" data-remove-purchase-item="${index}" style="min-height:32px;padding:0 9px"><i class="fa-solid fa-trash"></i></button></div>`,
         )
         .join("");
-      itemsRoot
-        .querySelectorAll("[data-remove-purchase-item]")
-        .forEach((button) =>
-          button.addEventListener("click", () => {
-            items.splice(Number(button.dataset.removePurchaseItem), 1);
-            itemsRoot.innerHTML = items
-              .map(
-                (item, index) =>
-                  `<div class="ops-item"><div>${esc(item.product_name)}<div class="ops-muted">${item.quantity} × ${money(item.unit_cost)}${item.lot_code ? ` · Lote ${esc(item.lot_code)}` : ""}${item.expiry_date ? ` · Validade ${dateBR(item.expiry_date)}` : ""}</div></div><button type="button" class="ops-btn danger" data-remove-purchase-item="${index}"><i class="fa-solid fa-trash"></i></button></div>`,
-              )
-              .join("");
-          }),
-        );
+      view.querySelectorAll("[data-remove-purchase-item]").forEach((button) =>
+        button.addEventListener("click", () => {
+          items.splice(Number(button.dataset.removePurchaseItem), 1);
+          itemsRoot.innerHTML = items
+            .map(
+              (item, index) =>
+                `<div style="padding:8px 0;border-bottom:1px solid #edf1ed;display:flex;justify-content:space-between;align-items:center;gap:10px">${esc(item.product_name)}: <strong>${item.quantity}</strong> × <strong>${money(item.unit_cost)}</strong>${item.lot_code ? ` · Lote ${esc(item.lot_code)}` : ""}${item.expiry_date ? ` · Validade ${dateBR(item.expiry_date)}` : ""}<button type="button" class="ops-btn danger" data-remove-purchase-item="${index}" style="min-height:32px;padding:0 9px"><i class="fa-solid fa-trash"></i></button></div>`,
+            )
+            .join("");
+        }),
+      );
       costInput.value = "";
       lotInput.value = "";
       expiryInput.value = "";
@@ -229,13 +227,13 @@ export function mountOperationsAdmin({ content, notify = () => {} }) {
         const { data: userData, error: userError } =
           await supabase.auth.getUser();
         if (userError) throw userError;
-        const createdBy = userData?.user?.id || null;
-        const subtotal = items.reduce(
-          (total, item) =>
-            total +
-            (Number(item.quantity) || 0) * (Number(item.unit_cost) || 0),
-          0,
-        );
+        const createdBy = userData?.user?.id || null,
+          total = items.reduce(
+            (sum, item) =>
+              sum +
+              (Number(item.quantity) || 0) * (Number(item.unit_cost) || 0),
+            0,
+          );
         const { data: purchaseOrder, error: purchaseOrderError } =
           await supabase
             .from("purchase_orders")
@@ -244,7 +242,7 @@ export function mountOperationsAdmin({ content, notify = () => {} }) {
               expected_at: form.get("expected_at") || null,
               notes: String(form.get("notes") || "").trim() || null,
               created_by: createdBy,
-              subtotal: subtotal,
+              subtotal: total,
               status: "draft",
             })
             .select("id")
@@ -341,9 +339,9 @@ export function mountOperationsAdmin({ content, notify = () => {} }) {
       delivered: [],
       cancelled: [],
     };
-    (orders || []).forEach((order) => {
-      (groups[order.status] || groups.pending).push(order);
-    });
+    (orders || []).forEach((order) =>
+      (groups[order.status] || groups.pending).push(order),
+    );
     const columns = [
       ["pending", "Pendentes"],
       ["paid", "Pagos"],
@@ -386,9 +384,9 @@ export function mountOperationsAdmin({ content, notify = () => {} }) {
     try {
       stopCamera();
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
-      });
-      const video = document.createElement("video");
+          video: { facingMode: { ideal: "environment" } },
+        }),
+        video = document.createElement("video");
       video.autoplay = true;
       video.muted = true;
       video.playsInline = true;
@@ -432,15 +430,13 @@ export function mountOperationsAdmin({ content, notify = () => {} }) {
     );
   }
   async function renderLoyalty() {
-    let settings = null;
     const { data, error } = await supabase
       .from("loyalty_settings")
       .select("*")
       .limit(1)
       .maybeSingle();
     if (error) throw error;
-    settings = data;
-    view.innerHTML = `${tabsHTML()}<div class="ops-panel"><h3>Fidelidade</h3><div class="ops-grid"><div class="ops-stat"><span class="ops-muted">Pontos por R$ 1</span><strong>${Number(settings?.points_per_currency || 1)}</strong></div><div class="ops-stat"><span class="ops-muted">Valor de cada ponto</span><strong>${money(settings?.point_value || 0)}</strong></div><div class="ops-stat"><span class="ops-muted">Mínimo para resgate</span><strong>${Number(settings?.minimum_redeem_points || 0)} pontos</strong></div><div class="ops-stat"><span class="ops-muted">Status</span><strong>${settings?.enabled === false ? "Desativado" : "Ativo"}</strong></div></div></div>`;
+    view.innerHTML = `${tabsHTML()}<div class="ops-panel"><h3>Fidelidade</h3><div class="ops-grid"><div class="ops-stat"><span class="ops-muted">Pontos por R$ 1</span><strong>${Number(data?.points_per_currency || 1)}</strong></div><div class="ops-stat"><span class="ops-muted">Valor de cada ponto</span><strong>${money(data?.point_value || 0)}</strong></div><div class="ops-stat"><span class="ops-muted">Mínimo para resgate</span><strong>${Number(data?.minimum_redeem_points || 0)} pontos</strong></div><div class="ops-stat"><span class="ops-muted">Status</span><strong>${data?.enabled === false ? "Desativado" : "Ativo"}</strong></div></div></div>`;
     view.querySelectorAll("[data-ops-tab]").forEach((button) =>
       button.addEventListener("click", async () => {
         currentTab = button.dataset.opsTab;
