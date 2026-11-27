@@ -18,3 +18,5 @@ html{scrollbar-gutter:stable}
 ::-webkit-scrollbar-thumb:hover{background:#176b43}
 ::-webkit-scrollbar-corner{background:#edf3ee}
 *{scrollbar-width:thin;scrollbar-color:#8fb39f #edf3ee}
+/* Labels informativos: não apresentam affordance de clique. */
+label { cursor: default !important; }

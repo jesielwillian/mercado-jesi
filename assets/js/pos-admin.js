@@ -744,12 +744,7 @@ function updateTotals() {
   const discountValid = values.discount <= values.subtotal;
   const totalValid = values.total > 0;
 
-  const payment = content.querySelector("#pos-payment")?.value;
-  const received = parseMoney(content.querySelector("#pos-received")?.value || 0);
-  const receivedValid = payment !== "cash" || received >= values.total;
-
-  finish.disabled =
-    !cart.length || !discountValid || !totalValid || !receivedValid;
+  finish.disabled = !cart.length || !discountValid || !totalValid;
 
   const change = content.querySelector("#pos-change");
   if (payment === "cash" && received >= values.total && values.total > 0) {
@@ -794,15 +789,19 @@ async function finalizeSale(event) {
   const values = new FormData(form);
   const calculated = totals();
   const paymentMethod = values.get("payment_method");
-  const received = Number(values.get("received") || 0);
+  const received = parseMoney(values.get("received") || "0");
 
   if (calculated.discount > calculated.subtotal || calculated.total <= 0) {
     notify("Confira o subtotal e o desconto.");
     return;
   }
 
-  if (paymentMethod === "cash" && received < calculated.total) {
-    notify("O valor recebido é menor que o total.");
+  if (paymentMethod === "cash" && (!Number.isFinite(received) || received < calculated.total)) {
+    notify(
+      !Number.isFinite(received)
+        ? "Informe um valor recebido válido."
+        : "O valor recebido é menor que o total.",
+    );
     return;
   }
 
