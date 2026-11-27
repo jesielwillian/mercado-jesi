@@ -85,39 +85,63 @@ function renderPage() {
     <div id="product-modal-root"></div>`;
   content.querySelector("#storage-mode").textContent = "";
   content.querySelector("#add-product").addEventListener("click", () => openForm());
-  content.querySelector("#refresh-products").addEventListener("click", loadProducts);
+  content.querySelector("#refresh-products").addEventListener("click", () => loadProducts({ showSuccess: true }));
   content.querySelector("#product-search").addEventListener("input", render);
   content.querySelector("#products-table-body").addEventListener("click", handleTableAction);
 }
 
-async function loadProducts() {
+async function loadProducts({ showSuccess = false } = {}) {
+  const refreshButton = content.querySelector("#refresh-products");
+  const originalButtonText = refreshButton?.textContent || "Atualizar";
+
+  if (refreshButton) {
+    refreshButton.disabled = true;
+    refreshButton.textContent = "Atualizando...";
+    refreshButton.setAttribute("aria-busy", "true");
+  }
+
   try {
     if (supabase) {
-      const { data, error } = await supabase.from("products").select("id,name,slug,description,sku,barcode,unit,price,cost_price,active,featured,category_id,categories(name),inventory(quantity,minimum_quantity),product_images(storage_path,alt_text,sort_order)").order("name");
+      const { data, error } = await supabase
+        .from("products")
+        .select("id,name,slug,description,sku,barcode,unit,price,cost_price,active,featured,category_id,categories(name),inventory(quantity,minimum_quantity),product_images(storage_path,alt_text,sort_order)")
+        .order("name");
+
       if (error) throw error;
+
       products = (data || []).map(item => ({
         ...item,
         category_name: item.categories?.name || "",
         stock: (Array.isArray(item.inventory) ? item.inventory[0] : item.inventory)?.quantity ?? 0,
         minimum_stock: (Array.isArray(item.inventory) ? item.inventory[0] : item.inventory)?.minimum_quantity ?? 0,
-        storage_path: item.product_images?.sort((a,b) => a.sort_order-b.sort_order)[0]?.storage_path || "",
+        storage_path: item.product_images?.sort((a, b) => a.sort_order - b.sort_order)[0]?.storage_path || "",
         local: false
       }));
+
       const storageMode = content.querySelector("#storage-mode");
-      if (storageMode) {
-        storageMode.textContent = "Sincronizado com Supabase";
-      }
+      if (storageMode) storageMode.textContent = "Sincronizado com Supabase";
     } else {
       products = (await localProductsList()).map(item => ({ ...item, local: true }));
       const storageMode = content.querySelector("#storage-mode");
-      if (storageMode) {
-        storageMode.textContent = "Modo local · dados neste navegador";
-      }
+      if (storageMode) storageMode.textContent = "Modo local · dados neste navegador";
     }
+
     render();
+
+    if (showSuccess) {
+      notify(supabase
+        ? `Produtos atualizados com sucesso! ${products.length} produto(s) carregado(s).`
+        : `Produtos atualizados neste navegador! ${products.length} produto(s) carregado(s).`);
+    }
   } catch (error) {
-    console.error(error);
-    notify(`Não foi possível carregar os produtos: ${error.message || "verifique a conexão"}`);
+    console.error("Erro ao atualizar produtos:", error);
+    notify(`Não foi possível atualizar os produtos: ${error.message || "verifique sua conexão"}`);
+  } finally {
+    if (refreshButton) {
+      refreshButton.disabled = false;
+      refreshButton.textContent = originalButtonText;
+      refreshButton.removeAttribute("aria-busy");
+    }
   }
 }
 
