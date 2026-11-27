@@ -1,91 +1,116 @@
-import { supabase } from './supabase.js';
+import { supabase } from "./supabase.js";
 
 let activeCameraStop = null;
 
-const money = value =>
-  new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
+const money = (value) =>
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
   }).format(Number(value || 0));
 
-const esc = value =>
-  String(value ?? '').replace(/[&<>"']/g, char => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;'
-  }[char]));
+const esc = (value) =>
+  String(value ?? "").replace(
+    /[&<>"']/g,
+    (char) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[char],
+  );
 
-const dateBR = value =>
+const dateBR = (value) =>
   value
-    ? new Intl.DateTimeFormat('pt-BR').format(new Date(`${value}T00:00:00`))
-    : '—';
+    ? new Intl.DateTimeFormat("pt-BR").format(new Date(`${value}T00:00:00`))
+    : "—";
 
-const ean13Svg = code => {
+const ean13Svg = (code) => {
   const L = [
-    '0001101','0011001','0010011','0111101','0100011',
-    '0110001','0101111','0111011','0110111','0001011'
+    "0001101",
+    "0011001",
+    "0010011",
+    "0111101",
+    "0100011",
+    "0110001",
+    "0101111",
+    "0111011",
+    "0110111",
+    "0001011",
   ];
 
   const G = [
-    '0100111','0110011','0011011','0100001','0011101',
-    '0111001','0000101','0010001','0001001','0010111'
+    "0100111",
+    "0110011",
+    "0011011",
+    "0100001",
+    "0011101",
+    "0111001",
+    "0000101",
+    "0010001",
+    "0001001",
+    "0010111",
   ];
 
   const R = [
-    '1110010','1100110','1101100','1000010','1011100',
-    '1001110','1010000','1000100','1001000','1110100'
+    "1110010",
+    "1100110",
+    "1101100",
+    "1000010",
+    "1011100",
+    "1001110",
+    "1010000",
+    "1000100",
+    "1001000",
+    "1110100",
   ];
 
   const parity = [
-    'LLLLLL',
-    'LLGLGG',
-    'LLGGLG',
-    'LLGGGL',
-    'LGLLGG',
-    'LGGLLG',
-    'LGGGLL',
-    'LGLGLG',
-    'LGLGGL',
-    'LGGLGL'
+    "LLLLLL",
+    "LLGLGG",
+    "LLGGLG",
+    "LLGGGL",
+    "LGLLGG",
+    "LGGLLG",
+    "LGGGLL",
+    "LGLGLG",
+    "LGLGGL",
+    "LGGLGL",
   ];
 
-  if (!/^\d{13}$/.test(code)) return '';
+  if (!/^\d{13}$/.test(code)) return "";
 
   const sum = [...code.slice(0, 12)].reduce(
-    (total, digit, index) =>
-      total + Number(digit) * (index % 2 ? 3 : 1),
-    0
+    (total, digit, index) => total + Number(digit) * (index % 2 ? 3 : 1),
+    0,
   );
 
   if ((10 - (sum % 10)) % 10 !== Number(code[12])) {
-    return '';
+    return "";
   }
 
   const pattern = parity[Number(code[0])];
 
-  let bits = '101';
+  let bits = "101";
 
   for (let i = 0; i < 6; i++) {
-    bits += (pattern[i] === 'L' ? L : G)[Number(code[i + 1])];
+    bits += (pattern[i] === "L" ? L : G)[Number(code[i + 1])];
   }
 
-  bits += '01010';
+  bits += "01010";
 
   for (let i = 7; i < 13; i++) {
     bits += R[Number(code[i])];
   }
 
-  bits += '101';
+  bits += "101";
 
   const bars = [...bits]
     .map((bit, index) =>
-      bit === '1'
-        ? `<rect x="${index + 9}" y="0" width="1" height="48"/>`
-        : ''
+      bit === "1" ? `<rect x="${index + 9}" y="0" width="1" height="48"/>` : "",
     )
-    .join('');
+    .join("");
 
   return `
     <svg
@@ -107,30 +132,30 @@ const ean13Svg = code => {
 };
 
 const statusLabels = {
-  pending: 'Pendente',
-  confirmed: 'Confirmado',
-  preparing: 'Em preparação',
-  ready: 'Pronto',
-  out_for_delivery: 'Saiu para entrega',
-  completed: 'Concluído',
-  cancelled: 'Cancelado'
+  pending: "Pendente",
+  confirmed: "Confirmado",
+  preparing: "Em preparação",
+  ready: "Pronto",
+  out_for_delivery: "Saiu para entrega",
+  completed: "Concluído",
+  cancelled: "Cancelado",
 };
 
 const statuses = [
-  'pending',
-  'confirmed',
-  'preparing',
-  'ready',
-  'out_for_delivery',
-  'completed'
+  "pending",
+  "confirmed",
+  "preparing",
+  "ready",
+  "out_for_delivery",
+  "completed",
 ];
 
 function styles() {
-  if (document.querySelector('#operations-admin-styles')) return;
+  if (document.querySelector("#operations-admin-styles")) return;
 
-  const style = document.createElement('style');
+  const style = document.createElement("style");
 
-  style.id = 'operations-admin-styles';
+  style.id = "operations-admin-styles";
 
   style.textContent = `
     .ops-admin{
@@ -845,10 +870,7 @@ function styles() {
   document.head.append(style);
 }
 
-export function mountOperationsAdmin({
-  content,
-  notify = () => {}
-}) {
+export function mountOperationsAdmin({ content, notify = () => {} }) {
   styles();
 
   content.innerHTML = `
@@ -883,9 +905,9 @@ export function mountOperationsAdmin({
     </section>
   `;
 
-  const view = content.querySelector('#ops-view');
+  const view = content.querySelector("#ops-view");
 
-  let active = 'purchases';
+  let active = "purchases";
   let realtime = null;
   let products = [];
   let suppliers = [];
@@ -893,17 +915,17 @@ export function mountOperationsAdmin({
   const loadBase = async () => {
     const [productsResult, suppliersResult] = await Promise.all([
       supabase
-        .from('products')
-        .select('id,name,barcode,sku,price,cost_price,unit')
-        .eq('active', true)
-        .order('name')
+        .from("products")
+        .select("id,name,barcode,sku,price,cost_price,unit")
+        .eq("active", true)
+        .order("name")
         .limit(1000),
 
       supabase
-        .from('suppliers')
-        .select('id,name')
-        .eq('active', true)
-        .order('name')
+        .from("suppliers")
+        .select("id,name")
+        .eq("active", true)
+        .order("name"),
     ]);
 
     if (productsResult.error) {
@@ -918,50 +940,45 @@ export function mountOperationsAdmin({
     suppliers = suppliersResult.data || [];
   };
 
-  const productOptions = (selected = '') =>
+  const productOptions = (selected = "") =>
     products
-      .map(product => `
+      .map(
+        (product) => `
         <option
           value="${product.id}"
-          ${product.id === selected ? 'selected' : ''}
+          ${product.id === selected ? "selected" : ""}
         >
           ${esc(product.name)}
-          ${product.barcode ? ` · ${esc(product.barcode)}` : ''}
+          ${product.barcode ? ` · ${esc(product.barcode)}` : ""}
         </option>
-      `)
-      .join('');
+      `,
+      )
+      .join("");
 
-  const tab = name => {
+  const tab = (name) => {
     active = name;
 
-    content
-      .querySelectorAll('[data-tab]')
-      .forEach(button => {
-        button.classList.toggle(
-          'active',
-          button.dataset.tab === name
-        );
-      });
+    content.querySelectorAll("[data-tab]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.tab === name);
+    });
 
-    render().catch(error => {
+    render().catch((error) => {
       console.error(error);
 
       view.innerHTML = `
         <div class="ops-alert">
           Não foi possível carregar esta área:
-          ${esc(error.message || 'Erro desconhecido')}
+          ${esc(error.message || "Erro desconhecido")}
         </div>
       `;
     });
   };
 
   async function renderPurchases() {
-    const {
-      data: orders,
-      error
-    } = await supabase
-      .from('purchase_orders')
-      .select(`
+    const { data: orders, error } = await supabase
+      .from("purchase_orders")
+      .select(
+        `
         id,
         status,
         expected_at,
@@ -977,8 +994,9 @@ export function mountOperationsAdmin({
           expiry_date,
           products(name)
         )
-      `)
-      .order('created_at', { ascending: false })
+      `,
+      )
+      .order("created_at", { ascending: false })
       .limit(50);
 
     if (error) {
@@ -999,12 +1017,14 @@ export function mountOperationsAdmin({
               <option value="">Selecione</option>
 
               ${suppliers
-                .map(supplier => `
+                .map(
+                  (supplier) => `
                   <option value="${supplier.id}">
                     ${esc(supplier.name)}
                   </option>
-                `)
-                .join('')}
+                `,
+                )
+                .join("")}
             </select>
           </label>
 
@@ -1132,11 +1152,12 @@ export function mountOperationsAdmin({
 
               ${
                 (orders || [])
-                  .map(order => `
+                  .map(
+                    (order) => `
                     <tr>
 
                       <td>
-                        ${esc(order.suppliers?.name || 'Fornecedor')}
+                        ${esc(order.suppliers?.name || "Fornecedor")}
                       </td>
 
                       <td>
@@ -1158,8 +1179,8 @@ export function mountOperationsAdmin({
                       <td>
 
                         ${
-                          order.status === 'received'
-                            ? 'Recebido'
+                          order.status === "received"
+                            ? "Recebido"
                             : `
                               <button
                                 class="ops-btn primary"
@@ -1173,9 +1194,9 @@ export function mountOperationsAdmin({
                       </td>
 
                     </tr>
-                  `)
-                  .join('')
-                ||
+                  `,
+                  )
+                  .join("") ||
                 `
                   <tr>
                     <td colspan="6">
@@ -1200,51 +1221,41 @@ export function mountOperationsAdmin({
 
     const items = [];
 
-    const itemsRoot =
-      view.querySelector('#ops-purchase-items');
+    const itemsRoot = view.querySelector("#ops-purchase-items");
 
-    const productSelect =
-      view.querySelector('#ops-purchase-product');
+    const productSelect = view.querySelector("#ops-purchase-product");
 
-    const qtyInput =
-      view.querySelector('#ops-purchase-qty');
+    const qtyInput = view.querySelector("#ops-purchase-qty");
 
-    const costInput =
-      view.querySelector('#ops-purchase-cost');
+    const costInput = view.querySelector("#ops-purchase-cost");
 
-    const expiryInput =
-      view.querySelector('#ops-purchase-expiry');
+    const expiryInput = view.querySelector("#ops-purchase-expiry");
 
-    const lotInput =
-      view.querySelector('#ops-purchase-lot');
+    const lotInput = view.querySelector("#ops-purchase-lot");
 
-    const addButton =
-      view.querySelector('#ops-add-purchase-item');
+    const addButton = view.querySelector("#ops-add-purchase-item");
 
-    addButton.addEventListener('click', () => {
-      const product = products.find(
-        item => item.id === productSelect.value
-      );
+    addButton.addEventListener("click", () => {
+      const product = products.find((item) => item.id === productSelect.value);
 
-      const qty = Number(qtyInput.value);
-      const cost = Number(costInput.value);
+      const qty = Number(String(qtyInput.value || "").replace(",", "."));
+
+      const cost = Number(String(costInput.value || "").replace(",", "."));
 
       if (!product) {
-        notify('Selecione um produto.');
+        notify("Selecione um produto.");
         productSelect.focus();
         return;
       }
 
       if (!Number.isFinite(qty) || qty <= 0) {
-        notify('Informe uma quantidade válida.');
+        notify("Informe uma quantidade válida.");
         qtyInput.focus();
         return;
       }
 
       if (!Number.isFinite(cost) || cost <= 0) {
-        notify(
-          'Informe um custo unitário maior que R$ 0,00.'
-        );
+        notify("Informe um custo unitário maior que R$ 0,00.");
         costInput.focus();
         return;
       }
@@ -1255,11 +1266,12 @@ export function mountOperationsAdmin({
         quantity: qty,
         unit_cost: cost,
         expiry_date: expiryInput.value || null,
-        lot_code: lotInput.value.trim() || null
+        lot_code: lotInput.value.trim() || null,
       });
 
       itemsRoot.innerHTML = items
-        .map(item => `
+        .map(
+          (item) => `
           <div
             style="
               padding:8px 0;
@@ -1271,238 +1283,167 @@ export function mountOperationsAdmin({
             ×
             <strong>${money(item.unit_cost)}</strong>
 
-            ${
-              item.lot_code
-                ? ` · Lote ${esc(item.lot_code)}`
-                : ''
-            }
+            ${item.lot_code ? ` · Lote ${esc(item.lot_code)}` : ""}
 
-            ${
-              item.expiry_date
-                ? ` · Validade ${dateBR(item.expiry_date)}`
-                : ''
-            }
+            ${item.expiry_date ? ` · Validade ${dateBR(item.expiry_date)}` : ""}
           </div>
-        `)
-        .join('');
+        `,
+        )
+        .join("");
 
-      costInput.value = '';
-      lotInput.value = '';
-      expiryInput.value = '';
+      costInput.value = "";
+      lotInput.value = "";
+      expiryInput.value = "";
 
-      notify('Item adicionado ao pedido.');
+      notify("Item adicionado ao pedido.");
     });
 
-    const purchaseForm =
-      view.querySelector('#ops-purchase-form');
+    const purchaseForm = view.querySelector("#ops-purchase-form");
 
-    purchaseForm.addEventListener(
-      'submit',
-      async event => {
-        event.preventDefault();
+    purchaseForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
 
-        try {
-          const form = new FormData(
-            event.currentTarget
-          );
+      try {
+        const form = new FormData(event.currentTarget);
 
-          const supplierId =
-            String(
-              form.get('supplier_id') || ''
-            ).trim();
+        const supplierId = String(form.get("supplier_id") || "").trim();
 
-          if (!supplierId) {
-            notify('Selecione um fornecedor.');
-            return;
-          }
-
-          if (!items.length) {
-            notify(
-              'Adicione ao menos um item ao pedido.'
-            );
-            return;
-          }
-
-          const invalidItem = items.find(
-            item =>
-              !item.product_id ||
-              !Number.isFinite(item.quantity) ||
-              item.quantity <= 0 ||
-              !Number.isFinite(item.unit_cost) ||
-              item.unit_cost <= 0
-          );
-
-          if (invalidItem) {
-            notify(
-              'Existe um item com quantidade ou custo inválido.'
-            );
-            return;
-          }
-
-          const {
-            data: userData,
-            error: userError
-          } = await supabase.auth.getUser();
-
-          if (userError) {
-            throw userError;
-          }
-
-          const createdBy =
-            userData?.user?.id || null;
-
-          const {
-            data: purchaseOrder,
-            error: purchaseOrderError
-          } = await supabase
-            .from('purchase_orders')
-            .insert({
-              supplier_id: supplierId,
-              expected_at:
-                form.get('expected_at') || null,
-              notes:
-                String(form.get('notes') || '').trim() ||
-                null,
-              created_by: createdBy
-            })
-            .select('id')
-            .single();
-
-          if (purchaseOrderError) {
-            console.error(
-              'Erro ao criar pedido de compra:',
-              purchaseOrderError
-            );
-
-            notify(
-              `Não foi possível salvar o pedido: ${purchaseOrderError.message}`
-            );
-
-            return;
-          }
-
-          const purchaseItems = items.map(item => ({
-            purchase_order_id: purchaseOrder.id,
-            product_id: item.product_id,
-            quantity: item.quantity,
-            received_quantity: 0,
-            unit_cost: item.unit_cost,
-            expiry_date: item.expiry_date || null,
-            lot_code: item.lot_code || null
-          }));
-
-          const {
-            error: itemError
-          } = await supabase
-            .from('purchase_order_items')
-            .insert(purchaseItems);
-
-          if (itemError) {
-            console.error(
-              'Erro ao salvar itens da compra:',
-              itemError
-            );
-
-            await supabase
-              .from('purchase_orders')
-              .delete()
-              .eq('id', purchaseOrder.id);
-
-            notify(
-              `Não foi possível salvar os itens: ${itemError.message}`
-            );
-
-            return;
-          }
-
-          notify(
-            'Pedido de compra salvo com sucesso.'
-          );
-
-          await renderPurchases();
-
-        } catch (error) {
-          console.error(
-            'Erro inesperado ao salvar compra:',
-            error
-          );
-
-          notify(
-            error?.message ||
-            'Não foi possível salvar o pedido de compra.'
-          );
+        if (!supplierId) {
+          notify("Selecione um fornecedor.");
+          return;
         }
-      }
-    );
 
-    view
-      .querySelectorAll('[data-receive-purchase]')
-      .forEach(button => {
+        if (!items.length) {
+          notify("Adicione ao menos um item ao pedido.");
+          return;
+        }
 
-        button.addEventListener(
-          'click',
-          async () => {
-
-            if (
-              !confirm(
-                'Confirmar recebimento integral? O estoque será atualizado e os lotes serão registrados.'
-              )
-            ) {
-              return;
-            }
-
-            button.disabled = true;
-
-            try {
-              const {
-                data,
-                error
-              } = await supabase.rpc(
-                'receive_purchase_order',
-                {
-                  p_purchase_order_id:
-                    button.dataset.receivePurchase
-                }
-              );
-
-              if (error) {
-                throw error;
-              }
-
-              if (!data?.success) {
-                throw new Error(
-                  'O banco não confirmou o recebimento.'
-                );
-              }
-
-              notify(
-                'Compra recebida e estoque atualizado.'
-              );
-
-              await renderPurchases();
-
-            } catch (error) {
-              console.error(error);
-
-              notify(
-                `Não foi possível receber a compra: ${error.message}`
-              );
-
-              button.disabled = false;
-            }
-          }
+        const invalidItem = items.find(
+          (item) =>
+            !item.product_id ||
+            !Number.isFinite(item.quantity) ||
+            item.quantity <= 0 ||
+            !Number.isFinite(item.unit_cost) ||
+            item.unit_cost <= 0,
         );
 
+        if (invalidItem) {
+          notify("Existe um item com quantidade ou custo inválido.");
+          return;
+        }
+
+        const { data: userData, error: userError } =
+          await supabase.auth.getUser();
+
+        if (userError) {
+          throw userError;
+        }
+
+        const createdBy = userData?.user?.id || null;
+
+        const { data: purchaseOrder, error: purchaseOrderError } =
+          await supabase
+            .from("purchase_orders")
+            .insert({
+              supplier_id: supplierId,
+              expected_at: form.get("expected_at") || null,
+              notes: String(form.get("notes") || "").trim() || null,
+              created_by: createdBy,
+            })
+            .select("id")
+            .single();
+
+        if (purchaseOrderError) {
+          console.error("Erro ao criar pedido de compra:", purchaseOrderError);
+
+          notify(
+            `Não foi possível salvar o pedido: ${purchaseOrderError.message}`,
+          );
+
+          return;
+        }
+
+        const purchaseItems = items.map((item) => ({
+          purchase_order_id: purchaseOrder.id,
+          product_id: item.product_id,
+          quantity: item.quantity,
+          received_quantity: 0,
+          unit_cost: item.unit_cost,
+          expiry_date: item.expiry_date || null,
+          lot_code: item.lot_code || null,
+        }));
+
+        const { error: itemError } = await supabase
+          .from("purchase_order_items")
+          .insert(purchaseItems);
+
+        if (itemError) {
+          console.error("Erro ao salvar itens da compra:", itemError);
+
+          await supabase
+            .from("purchase_orders")
+            .delete()
+            .eq("id", purchaseOrder.id);
+
+          notify(`Não foi possível salvar os itens: ${itemError.message}`);
+
+          return;
+        }
+
+        notify("Pedido de compra salvo com sucesso.");
+
+        await renderPurchases();
+      } catch (error) {
+        console.error("Erro inesperado ao salvar compra:", error);
+
+        notify(error?.message || "Não foi possível salvar o pedido de compra.");
+      }
+    });
+
+    view.querySelectorAll("[data-receive-purchase]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        if (
+          !confirm(
+            "Confirmar recebimento integral? O estoque será atualizado e os lotes serão registrados.",
+          )
+        ) {
+          return;
+        }
+
+        button.disabled = true;
+
+        try {
+          const { data, error } = await supabase.rpc("receive_purchase_order", {
+            p_purchase_order_id: button.dataset.receivePurchase,
+          });
+
+          if (error) {
+            throw error;
+          }
+
+          if (!data?.success) {
+            throw new Error("O banco não confirmou o recebimento.");
+          }
+
+          notify("Compra recebida e estoque atualizado.");
+
+          await renderPurchases();
+        } catch (error) {
+          console.error(error);
+
+          notify(`Não foi possível receber a compra: ${error.message}`);
+
+          button.disabled = false;
+        }
       });
+    });
   }
 
   async function renderLots() {
-    const {
-      data,
-      error
-    } = await supabase
-      .from('inventory_lots')
-      .select(`
+    const { data, error } = await supabase
+      .from("inventory_lots")
+      .select(
+        `
         id,
         lot_code,
         quantity_received,
@@ -1510,10 +1451,11 @@ export function mountOperationsAdmin({
         expiry_date,
         received_at,
         products(name,sku)
-      `)
-      .order('expiry_date', {
+      `,
+      )
+      .order("expiry_date", {
         ascending: true,
-        nullsFirst: false
+        nullsFirst: false,
       })
       .limit(500);
 
@@ -1523,42 +1465,26 @@ export function mountOperationsAdmin({
 
     const today = new Date();
 
-    today.setHours(
-      0,
-      0,
-      0,
-      0
+    today.setHours(0, 0, 0, 0);
+
+    const active = (data || []).filter(
+      (lot) => Number(lot.quantity_remaining) > 0,
     );
 
-    const active =
-      (data || []).filter(
-        lot => Number(lot.quantity_remaining) > 0
-      );
+    const expired = active.filter(
+      (lot) =>
+        lot.expiry_date && new Date(`${lot.expiry_date}T00:00:00`) < today,
+    );
 
-    const expired =
-      active.filter(
-        lot =>
-          lot.expiry_date &&
-          new Date(
-            `${lot.expiry_date}T00:00:00`
-          ) < today
-      );
+    const soon = active.filter((lot) => {
+      if (!lot.expiry_date) {
+        return false;
+      }
 
-    const soon =
-      active.filter(lot => {
-        if (!lot.expiry_date) {
-          return false;
-        }
+      const date = new Date(`${lot.expiry_date}T00:00:00`);
 
-        const date = new Date(
-          `${lot.expiry_date}T00:00:00`
-        );
-
-        return (
-          date - today < 30 * 864e5 &&
-          date >= today
-        );
-      });
+      return date - today < 30 * 864e5 && date >= today;
+    });
 
     view.innerHTML = `
       <div class="ops-grid">
@@ -1588,7 +1514,7 @@ export function mountOperationsAdmin({
               Faça a conferência física e registre a baixa apropriada no estoque.
             </div>
           `
-          : ''
+          : ""
       }
 
       <div class="ops-panel">
@@ -1614,32 +1540,27 @@ export function mountOperationsAdmin({
 
               ${
                 active
-                  .map(lot => {
-
+                  .map((lot) => {
                     const date = lot.expiry_date
-                      ? new Date(
-                          `${lot.expiry_date}T00:00:00`
-                        )
+                      ? new Date(`${lot.expiry_date}T00:00:00`)
                       : null;
 
                     const state =
                       date && date < today
-                        ? 'Vencido'
-                        : date &&
-                          date - today <
-                            30 * 864e5
-                        ? 'Próximo do vencimento'
-                        : 'Regular';
+                        ? "Vencido"
+                        : date && date - today < 30 * 864e5
+                          ? "Próximo do vencimento"
+                          : "Regular";
 
                     return `
                       <tr>
 
                         <td>
-                          ${esc(lot.products?.name || '—')}
+                          ${esc(lot.products?.name || "—")}
                         </td>
 
                         <td>
-                          ${esc(lot.lot_code || '—')}
+                          ${esc(lot.lot_code || "—")}
                         </td>
 
                         <td>
@@ -1661,8 +1582,7 @@ export function mountOperationsAdmin({
                       </tr>
                     `;
                   })
-                  .join('')
-                ||
+                  .join("") ||
                 `
                   <tr>
                     <td colspan="6">
@@ -1684,12 +1604,10 @@ export function mountOperationsAdmin({
   }
 
   async function renderKanban() {
-    const {
-      data,
-      error
-    } = await supabase
-      .from('orders')
-      .select(`
+    const { data, error } = await supabase
+      .from("orders")
+      .select(
+        `
         id,
         order_number,
         status,
@@ -1698,11 +1616,12 @@ export function mountOperationsAdmin({
         customer_phone,
         fulfillment,
         created_at
-      `)
-      .is('archived_at', null)
-      .in('status', statuses)
-      .order('created_at', {
-        ascending: true
+      `,
+      )
+      .is("archived_at", null)
+      .in("status", statuses)
+      .order("created_at", {
+        ascending: true,
       })
       .limit(150);
 
@@ -1711,15 +1630,15 @@ export function mountOperationsAdmin({
     }
 
     const groups = [
-      ['pending', 'confirmed'],
-      ['preparing', 'ready'],
-      ['out_for_delivery', 'completed']
+      ["pending", "confirmed"],
+      ["preparing", "ready"],
+      ["out_for_delivery", "completed"],
     ];
 
     const titles = [
-      'Entrada e confirmação',
-      'Separação e pronto',
-      'Entrega e conclusão'
+      "Entrada e confirmação",
+      "Separação e pronto",
+      "Entrega e conclusão",
     ];
 
     view.innerHTML = `
@@ -1752,10 +1671,9 @@ export function mountOperationsAdmin({
 
                   ${
                     (data || [])
-                      .filter(order =>
-                        group.includes(order.status)
-                      )
-                      .map(order => `
+                      .filter((order) => group.includes(order.status))
+                      .map(
+                        (order) => `
                         <article class="ops-order">
 
                           <strong>
@@ -1770,15 +1688,14 @@ export function mountOperationsAdmin({
 
                           <small class="ops-muted">
                             ${
-                              order.fulfillment ===
-                              'delivery'
-                                ? 'Entrega'
-                                : 'Retirada'
+                              order.fulfillment === "delivery"
+                                ? "Entrega"
+                                : "Retirada"
                             }
                             ·
-                            ${new Date(
-                              order.created_at
-                            ).toLocaleString('pt-BR')}
+                            ${new Date(order.created_at).toLocaleString(
+                              "pt-BR",
+                            )}
                           </small>
 
                           <select
@@ -1788,21 +1705,16 @@ export function mountOperationsAdmin({
 
                             ${statuses
                               .map(
-                                status => `
+                                (status) => `
                                   <option
                                     value="${status}"
-                                    ${
-                                      order.status ===
-                                      status
-                                        ? 'selected'
-                                        : ''
-                                    }
+                                    ${order.status === status ? "selected" : ""}
                                   >
                                     ${statusLabels[status]}
                                   </option>
-                                `
+                                `,
                               )
-                              .join('')}
+                              .join("")}
 
                           </select>
 
@@ -1811,21 +1723,18 @@ export function mountOperationsAdmin({
                             target="_blank"
                             rel="noopener"
                             href="https://wa.me/${String(
-                              order.customer_phone || ''
-                            ).replace(
-                              /\D/g,
-                              ''
-                            )}?text=${encodeURIComponent(
-                              `Olá ${order.customer_name}, sobre seu pedido #${order.order_number} no Mercado Jesi.`
+                              order.customer_phone || "",
+                            ).replace(/\D/g, "")}?text=${encodeURIComponent(
+                              `Olá ${order.customer_name}, sobre seu pedido #${order.order_number} no Mercado Jesi.`,
                             )}"
                           >
                             Abrir WhatsApp
                           </a>
 
                         </article>
-                      `)
-                      .join('')
-                    ||
+                      `,
+                      )
+                      .join("") ||
                     `
                       <p class="ops-muted">
                         Nenhum pedido nesta etapa.
@@ -1834,50 +1743,34 @@ export function mountOperationsAdmin({
                   }
 
                 </section>
-              `
+              `,
             )
-            .join('')}
+            .join("")}
 
         </div>
 
       </div>
     `;
 
-    view
-      .querySelectorAll('[data-kanban-status]')
-      .forEach(select => {
+    view.querySelectorAll("[data-kanban-status]").forEach((select) => {
+      select.addEventListener("change", async () => {
+        const { error: updateError } = await supabase
+          .from("orders")
+          .update({
+            status: select.value,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", select.dataset.kanbanStatus);
 
-        select.addEventListener(
-          'change',
-          async () => {
+        if (updateError) {
+          throw updateError;
+        }
 
-            const {
-              error: updateError
-            } = await supabase
-              .from('orders')
-              .update({
-                status: select.value,
-                updated_at:
-                  new Date().toISOString()
-              })
-              .eq(
-                'id',
-                select.dataset.kanbanStatus
-              );
+        notify("Status do pedido atualizado.");
 
-            if (updateError) {
-              throw updateError;
-            }
-
-            notify(
-              'Status do pedido atualizado.'
-            );
-
-            await renderKanban();
-          }
-        );
-
+        await renderKanban();
       });
+    });
   }
 
   async function renderBarcode() {
@@ -2038,14 +1931,11 @@ export function mountOperationsAdmin({
       </div>
     `;
 
-    const input =
-      view.querySelector('#ops-barcode-input');
+    const input = view.querySelector("#ops-barcode-input");
 
-    const result =
-      view.querySelector('#ops-barcode-result');
+    const result = view.querySelector("#ops-barcode-result");
 
-    const video =
-      view.querySelector('#ops-camera');
+    const video = view.querySelector("#ops-camera");
 
     let stream = null;
     let raf = 0;
@@ -2058,15 +1948,10 @@ export function mountOperationsAdmin({
         return;
       }
 
-      const {
-        data,
-        error
-      } = await supabase
-        .from('products')
-        .select(
-          'id,name,sku,barcode,price,cost_price,unit'
-        )
-        .eq('barcode', code)
+      const { data, error } = await supabase
+        .from("products")
+        .select("id,name,sku,barcode,price,cost_price,unit")
+        .eq("barcode", code)
         .maybeSingle();
 
       if (error) {
@@ -2082,9 +1967,9 @@ export function mountOperationsAdmin({
             </strong>
 
             <span>
-              Código ${esc(data.barcode || '—')}
-              · SKU ${esc(data.sku || '—')}
-              · ${esc(data.unit || '—')}
+              Código ${esc(data.barcode || "—")}
+              · SKU ${esc(data.sku || "—")}
+              · ${esc(data.unit || "—")}
             </span>
 
             <strong>
@@ -2102,43 +1987,29 @@ export function mountOperationsAdmin({
       }
     }
 
-    view
-      .querySelector('#ops-barcode-search')
-      .addEventListener(
-        'click',
-        () => {
-          lookup().catch(error => {
-            console.error(error);
-            notify(
-              `Erro ao pesquisar produto: ${error.message}`
-            );
-          });
-        }
-      );
+    view.querySelector("#ops-barcode-search").addEventListener("click", () => {
+      lookup().catch((error) => {
+        console.error(error);
+        notify(`Erro ao pesquisar produto: ${error.message}`);
+      });
+    });
 
-    input.addEventListener(
-      'keydown',
-      event => {
-        if (event.key === 'Enter') {
-          event.preventDefault();
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
 
-          lookup().catch(error => {
-            console.error(error);
-            notify(
-              `Erro ao pesquisar produto: ${error.message}`
-            );
-          });
-        }
+        lookup().catch((error) => {
+          console.error(error);
+          notify(`Erro ao pesquisar produto: ${error.message}`);
+        });
       }
-    );
+    });
 
     const stop = () => {
       cancelAnimationFrame(raf);
 
       if (stream) {
-        stream
-          .getTracks()
-          .forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
       }
 
       stream = null;
@@ -2147,114 +2018,87 @@ export function mountOperationsAdmin({
       video.srcObject = null;
       video.hidden = true;
 
-      view.querySelector(
-        '#ops-camera-empty'
-      ).hidden = false;
+      view.querySelector("#ops-camera-empty").hidden = false;
 
-      view.querySelector(
-        '#ops-camera-stop'
-      ).disabled = true;
+      view.querySelector("#ops-camera-stop").disabled = true;
 
       activeCameraStop = null;
     };
 
     view
-      .querySelector('#ops-camera-start')
-      .addEventListener(
-        'click',
-        async () => {
+      .querySelector("#ops-camera-start")
+      .addEventListener("click", async () => {
+        if (!("BarcodeDetector" in window)) {
+          notify(
+            "Este navegador não oferece leitura de código pela câmera. Use leitor USB ou digite o código.",
+          );
+          return;
+        }
 
-          if (!('BarcodeDetector' in window)) {
-            notify(
-              'Este navegador não oferece leitura de código pela câmera. Use leitor USB ou digite o código.'
-            );
-            return;
-          }
+        try {
+          detector = new BarcodeDetector({
+            formats: [
+              "ean_13",
+              "ean_8",
+              "upc_a",
+              "upc_e",
+              "code_128",
+              "code_39",
+              "itf",
+            ],
+          });
 
-          try {
-            detector = new BarcodeDetector({
-              formats: [
-                'ean_13',
-                'ean_8',
-                'upc_a',
-                'upc_e',
-                'code_128',
-                'code_39',
-                'itf'
-              ]
-            });
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: {
+                ideal: "environment",
+              },
+            },
+            audio: false,
+          });
 
-            stream =
-              await navigator.mediaDevices.getUserMedia({
-                video: {
-                  facingMode: {
-                    ideal: 'environment'
-                  }
-                },
-                audio: false
-              });
+          video.srcObject = stream;
+          video.hidden = false;
 
-            video.srcObject = stream;
-            video.hidden = false;
+          view.querySelector("#ops-camera-empty").hidden = true;
 
-            view.querySelector(
-              '#ops-camera-empty'
-            ).hidden = true;
+          await video.play();
 
-            await video.play();
+          view.querySelector("#ops-camera-stop").disabled = false;
 
-            view.querySelector(
-              '#ops-camera-stop'
-            ).disabled = false;
+          const scan = async () => {
+            if (!stream) {
+              return;
+            }
 
-            const scan = async () => {
-              if (!stream) {
+            try {
+              const codes = await detector.detect(video);
+
+              if (codes.length) {
+                input.value = codes[0].rawValue;
+
+                await lookup();
+
+                stop();
+
                 return;
               }
+            } catch (error) {
+              console.debug("Scanner:", error);
+            }
 
-              try {
-                const codes =
-                  await detector.detect(video);
+            raf = requestAnimationFrame(scan);
+          };
 
-                if (codes.length) {
-                  input.value =
-                    codes[0].rawValue;
+          scan();
+        } catch (error) {
+          console.error(error);
 
-                  await lookup();
-
-                  stop();
-
-                  return;
-                }
-              } catch (error) {
-                console.debug(
-                  'Scanner:',
-                  error
-                );
-              }
-
-              raf =
-                requestAnimationFrame(scan);
-            };
-
-            scan();
-
-          } catch (error) {
-            console.error(error);
-
-            notify(
-              `Não foi possível abrir a câmera: ${error.message}`
-            );
-          }
+          notify(`Não foi possível abrir a câmera: ${error.message}`);
         }
-      );
+      });
 
-    view
-      .querySelector('#ops-camera-stop')
-      .addEventListener(
-        'click',
-        stop
-      );
+    view.querySelector("#ops-camera-stop").addEventListener("click", stop);
 
     activeCameraStop = stop;
   }
@@ -2347,121 +2191,72 @@ export function mountOperationsAdmin({
       </div>
     `;
 
-    const sheet =
-      view.querySelector('#ops-label-sheet');
+    const sheet = view.querySelector("#ops-label-sheet");
 
-    view
-      .querySelector('#ops-label-add')
-      .addEventListener(
-        'click',
-        () => {
+    view.querySelector("#ops-label-add").addEventListener("click", () => {
+      const product = products.find(
+        (item) => item.id === view.querySelector("#ops-label-product").value,
+      );
 
-          const product =
-            products.find(
-              item =>
-                item.id ===
-                view.querySelector(
-                  '#ops-label-product'
-                ).value
-            );
+      const qty = Math.min(
+        100,
+        Math.max(1, Number(view.querySelector("#ops-label-qty").value) || 1),
+      );
 
-          const qty = Math.min(
-            100,
-            Math.max(
-              1,
-              Number(
-                view.querySelector(
-                  '#ops-label-qty'
-                ).value
-              ) || 1
-            )
-          );
+      if (!product) {
+        notify("Selecione um produto.");
+        return;
+      }
 
-          if (!product) {
-            notify('Selecione um produto.');
-            return;
-          }
+      for (let i = 0; i < qty; i++) {
+        const label = document.createElement("div");
 
-          for (let i = 0; i < qty; i++) {
-            const label =
-              document.createElement('div');
+        label.className = "ops-label";
 
-            label.className =
-              'ops-label';
+        const name = document.createElement("strong");
 
-            const name =
-              document.createElement('strong');
+        name.textContent = product.name;
 
-            name.textContent =
-              product.name;
+        const price = document.createElement("b");
 
-            const price =
-              document.createElement('b');
+        price.textContent = money(product.price);
 
-            price.textContent =
-              money(product.price);
+        const code = document.createElement("div");
 
-            const code =
-              document.createElement('div');
+        const barcode = ean13Svg(String(product.barcode || ""));
 
-            const barcode =
-              ean13Svg(
-                String(
-                  product.barcode || ''
-                )
-              );
+        if (barcode) {
+          code.innerHTML = barcode;
+        } else {
+          const text = document.createElement("small");
 
-            if (barcode) {
-              code.innerHTML = barcode;
-            } else {
-              const text =
-                document.createElement('small');
+          text.textContent = product.barcode || product.sku || "";
 
-              text.textContent =
-                product.barcode ||
-                product.sku ||
-                '';
-
-              code.append(text);
-            }
-
-            label.append(
-              name,
-              price,
-              code
-            );
-
-            sheet.append(label);
-          }
-
-          notify(
-            `${qty} etiqueta(s) adicionada(s).`
-          );
+          code.append(text);
         }
-      );
+
+        label.append(name, price, code);
+
+        sheet.append(label);
+      }
+
+      notify(`${qty} etiqueta(s) adicionada(s).`);
+    });
 
     view
-      .querySelector('#ops-label-print')
-      .addEventListener(
-        'click',
-        () => window.print()
-      );
+      .querySelector("#ops-label-print")
+      .addEventListener("click", () => window.print());
 
     view
-      .querySelector('#ops-label-clear')
-      .addEventListener(
-        'click',
-        () => sheet.replaceChildren()
-      );
+      .querySelector("#ops-label-clear")
+      .addEventListener("click", () => sheet.replaceChildren());
   }
 
   async function renderLoyalty() {
-    const {
-      data,
-      error
-    } = await supabase
-      .from('loyalty_accounts')
-      .select(`
+    const { data, error } = await supabase
+      .from("loyalty_accounts")
+      .select(
+        `
         id,
         points_balance,
         lifetime_points,
@@ -2470,9 +2265,10 @@ export function mountOperationsAdmin({
           phone,
           email
         )
-      `)
-      .order('points_balance', {
-        ascending: false
+      `,
+      )
+      .order("points_balance", {
+        ascending: false,
       })
       .limit(500);
 
@@ -2509,21 +2305,16 @@ export function mountOperationsAdmin({
 
               ${
                 (data || [])
-                  .map(account => `
+                  .map(
+                    (account) => `
                     <tr>
 
                       <td>
-                        ${esc(
-                          account.customers?.full_name ||
-                          'Cliente'
-                        )}
+                        ${esc(account.customers?.full_name || "Cliente")}
                       </td>
 
                       <td>
-                        ${esc(
-                          account.customers?.phone ||
-                          '—'
-                        )}
+                        ${esc(account.customers?.phone || "—")}
                       </td>
 
                       <td>
@@ -2537,9 +2328,9 @@ export function mountOperationsAdmin({
                       </td>
 
                     </tr>
-                  `)
-                  .join('')
-                ||
+                  `,
+                  )
+                  .join("") ||
                 `
                   <tr>
                     <td colspan="4">
@@ -2574,149 +2365,103 @@ export function mountOperationsAdmin({
 
     await loadBase();
 
-    if (active === 'purchases') {
+    if (active === "purchases") {
       return renderPurchases();
     }
 
-    if (active === 'lots') {
+    if (active === "lots") {
       return renderLots();
     }
 
-    if (active === 'kanban') {
+    if (active === "kanban") {
       return renderKanban();
     }
 
-    if (active === 'barcode') {
+    if (active === "barcode") {
       return renderBarcode();
     }
 
-    if (active === 'labels') {
+    if (active === "labels") {
       return renderLabels();
     }
 
-    if (active === 'loyalty') {
+    if (active === "loyalty") {
       return renderLoyalty();
     }
   }
 
-  content
-    .querySelectorAll('[data-tab]')
-    .forEach(button => {
+  content.querySelectorAll("[data-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (realtime) {
+        supabase.removeChannel(realtime);
 
-      button.addEventListener(
-        'click',
-        () => {
-
-          if (realtime) {
-            supabase.removeChannel(
-              realtime
-            );
-
-            realtime = null;
-          }
-
-          activeCameraStop?.();
-
-          activeCameraStop = null;
-
-          tab(button.dataset.tab);
-
-          if (
-            button.dataset.tab ===
-            'kanban'
-          ) {
-            realtime =
-              supabase
-                .channel(
-                  'ops-orders-live'
-                )
-                .on(
-                  'postgres_changes',
-                  {
-                    event: '*',
-                    schema: 'public',
-                    table: 'orders'
-                  },
-                  () => {
-                    if (
-                      active ===
-                      'kanban'
-                    ) {
-                      renderKanban()
-                        .catch(
-                          console.error
-                        );
-                    }
-                  }
-                )
-                .subscribe();
-          }
-        }
-      );
-
-    });
-
-  content
-    .querySelector('#ops-refresh')
-    .addEventListener(
-      'click',
-      () => {
-        render().catch(error => {
-          console.error(error);
-
-          notify(
-            error.message ||
-            'Não foi possível atualizar.'
-          );
-        });
-      }
-    );
-
-  const root =
-    content.querySelector('.ops-admin');
-
-  const cleanupObserver =
-    new MutationObserver(() => {
-
-      if (!content.contains(root)) {
-
-        if (realtime) {
-          supabase.removeChannel(
-            realtime
-          );
-
-          realtime = null;
-        }
-
-        activeCameraStop?.();
-
-        activeCameraStop = null;
-
-        cleanupObserver.disconnect();
+        realtime = null;
       }
 
-    });
+      activeCameraStop?.();
 
-  cleanupObserver.observe(
-    content,
-    {
-      childList: true
+      activeCameraStop = null;
+
+      tab(button.dataset.tab);
+
+      if (button.dataset.tab === "kanban") {
+        realtime = supabase
+          .channel("ops-orders-live")
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "orders",
+            },
+            () => {
+              if (active === "kanban") {
+                renderKanban().catch(console.error);
+              }
+            },
+          )
+          .subscribe();
+      }
+    });
+  });
+
+  content.querySelector("#ops-refresh").addEventListener("click", () => {
+    render().catch((error) => {
+      console.error(error);
+
+      notify(error.message || "Não foi possível atualizar.");
+    });
+  });
+
+  const root = content.querySelector(".ops-admin");
+
+  const cleanupObserver = new MutationObserver(() => {
+    if (!content.contains(root)) {
+      if (realtime) {
+        supabase.removeChannel(realtime);
+
+        realtime = null;
+      }
+
+      activeCameraStop?.();
+
+      activeCameraStop = null;
+
+      cleanupObserver.disconnect();
     }
-  );
+  });
 
-  render().catch(error => {
-    console.error(
-      'Erro ao carregar módulo operations:',
-      error
-    );
+  cleanupObserver.observe(content, {
+    childList: true,
+  });
+
+  render().catch((error) => {
+    console.error("Erro ao carregar módulo operations:", error);
 
     view.innerHTML = `
       <div class="ops-alert">
         Não foi possível carregar o módulo de operações:
-        ${esc(
-          error.message ||
-          'Falha desconhecida'
-        )}
+        ${esc(error.message || "Falha desconhecida")}
       </div>
     `;
   });
