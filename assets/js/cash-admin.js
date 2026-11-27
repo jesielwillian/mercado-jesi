@@ -75,6 +75,10 @@ const styles = `
   .cash-button:disabled{opacity:.55;cursor:wait}
   .cash-button.secondary{background:rgba(255,255,255,.08);color:var(--text,#f4f5f7)}
   .cash-button.danger{background:#a93242;color:white}
+  .cash-button.archive{background:rgba(244,63,94,.10);color:#fb7185;border:1px solid rgba(244,63,94,.22)}
+  .cash-button.archive:hover{background:rgba(244,63,94,.17)}
+  .cash-history-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .cash-history-heading h3{margin:0}
   .cash-table-wrap{overflow-x:auto}
   .cash-table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:13px}
   .cash-table th,.cash-table td{text-align:left;padding:12px 10px;border-bottom:1px solid var(--border,rgba(255,255,255,.07))}
@@ -214,9 +218,10 @@ export function mountCashAdmin({ content, notify }) {
       const { data: history, error } = await supabase
         .from("cash_registers")
         .select(
-          "id, opening_amount, closing_amount, opened_at, closed_at, status",
+          "id, opening_amount, closing_amount, opened_at, closed_at, status, archived_at",
         )
         .eq("status", "closed")
+        .is("archived_at", null)
         .order("closed_at", { ascending: false })
         .limit(5);
 
@@ -242,7 +247,10 @@ export function mountCashAdmin({ content, notify }) {
         </div>
 
         <div class="cash-panel">
-          <h3>Últimos caixas fechados</h3>
+          <div class="cash-history-heading">
+            <h3>Últimos caixas fechados</h3>
+            ${(history || []).length ? `<button class="cash-button archive" type="button" data-action="clear-history"><i class="fa-solid fa-broom" aria-hidden="true"></i> Limpar histórico</button>` : ""}
+          </div>
           <div class="cash-table-wrap">
             <table class="cash-table">
               <thead><tr><th>Abertura</th><th>Fechamento</th><th>Valor inicial</th><th>Valor contado</th></tr></thead>
@@ -453,19 +461,39 @@ export function mountCashAdmin({ content, notify }) {
   });
 
   root.addEventListener("click", async (event) => {
-    const button = event.target.closest('[data-action="refresh"]');
+    const clearButton = event.target.closest('[data-action="clear-history"]');
+    const refreshButton = event.target.closest('[data-action="refresh"]');
+    const button = clearButton || refreshButton;
     if (!button || busy) return;
+
+    if (clearButton) {
+      const confirmed = window.confirm(
+        "Deseja limpar a lista de últimos caixas fechados?\n\nOs registros financeiros e as movimentações serão preservados. Essa ação apenas arquiva os fechamentos desta lista."
+      );
+      if (!confirmed) return;
+    }
 
     busy = true;
     button.disabled = true;
 
     try {
+      if (clearButton) {
+        const { error } = await supabase
+          .from("cash_registers")
+          .update({ archived_at: new Date().toISOString() })
+          .eq("status", "closed")
+          .is("archived_at", null);
+
+        if (error) throw error;
+        notify("Histórico de caixas fechado foi limpo. Os dados financeiros foram preservados.");
+      }
       await loadData();
     } catch (error) {
       console.error(error);
-      notify(error.message || "Não foi possível atualizar o caixa.");
+      notify(error.message || "Não foi possível concluir a operação.");
     } finally {
       busy = false;
+      if (button.isConnected) button.disabled = false;
     }
   });
 
