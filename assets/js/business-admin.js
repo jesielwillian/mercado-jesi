@@ -350,7 +350,21 @@ export function mountFinanceAdmin({content, notify}) {
       <section class="ba-panel"><h3>Registrar despesa</h3>
         <form class="ba-form" data-form="expense">
           ${field("Descrição","description","","text",'required maxlength="180"')}
-          ${field("Categoria","category","","text",'maxlength="80"')}
+          <label>Categoria<select name="category" required>
+            <option value="" selected disabled>Selecione uma categoria</option>
+            <option value="Mercadorias">Mercadorias</option>
+            <option value="Fornecedores">Fornecedores</option>
+            <option value="Água e energia">Água e energia</option>
+            <option value="Internet e telefone">Internet e telefone</option>
+            <option value="Embalagens">Embalagens</option>
+            <option value="Transporte e frete">Transporte e frete</option>
+            <option value="Aluguel">Aluguel</option>
+            <option value="Funcionários">Funcionários</option>
+            <option value="Manutenção">Manutenção</option>
+            <option value="Impostos e taxas">Impostos e taxas</option>
+            <option value="Marketing">Marketing</option>
+            <option value="Outros">Outros</option>
+          </select></label>
           ${field("Valor (R$)","amount","","number",'required min="0.01" step="0.01"')}
           ${field("Vencimento","due_date","","date")}
           <div class="ba-actions wide"><button class="ba-btn" type="submit">Cadastrar despesa</button></div>
@@ -369,10 +383,11 @@ export function mountFinanceAdmin({content, notify}) {
       const v = new FormData(e.currentTarget);
       const amount = Number(v.get("amount"));
       const description = String(v.get("description")||"").trim();
-      if (!description || !Number.isFinite(amount) || amount<=0) return notify("Informe descrição e valor válidos.");
+      const category = String(v.get("category")||"").trim();
+      if (!description || !category || !Number.isFinite(amount) || amount<=0) return notify("Informe descrição, categoria e valor válidos.");
       const {data:{user}} = await supabase.auth.getUser();
       const {error} = await supabase.from("expenses").insert({
-        description, category:String(v.get("category")||"").trim()||null,
+        description, category,
         amount, due_date:v.get("due_date")||null, created_by:user?.id
       });
       if (error) return notify(error.message);
