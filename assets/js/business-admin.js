@@ -675,8 +675,8 @@ export function mountSettingsAdmin({content, notify}) {
         ${field("WhatsApp","whatsapp",s.whatsapp||"")}
         ${field("Endereço","address",s.address||"")}
         <label class="wide">Horário de funcionamento<textarea name="opening_hours">${esc(s.opening_hours||"")}</textarea></label>
-        ${field("Taxa de entrega (R$)","delivery_fee",s.delivery_fee??0,"text",'inputmode="decimal" placeholder="0,00"')}
-        ${field("Valor mínimo para frete grátis (R$)","free_delivery_minimum",s.free_delivery_minimum??0,"text",'inputmode="decimal" placeholder="0,00"')}
+        ${field("Taxa de entrega (R$)","delivery_fee",s.delivery_fee??0,"text",'inputmode="decimal" data-currency-mask="true" placeholder="0,00"')}
+        ${field("Valor mínimo para frete grátis (R$)","free_delivery_minimum",s.free_delivery_minimum??0,"text",'inputmode="decimal" data-currency-mask="true" placeholder="0,00"')}
         <label><span><input type="checkbox" name="delivery_enabled" ${s.delivery_enabled===false?"":"checked"} style="width:auto;min-height:auto"> Entrega habilitada</span></label>
         <label><span><input type="checkbox" name="pickup_enabled" ${s.pickup_enabled===false?"":"checked"} style="width:auto;min-height:auto"> Retirada habilitada</span></label>
         <div class="ba-actions wide"><button class="ba-btn" type="submit">Salvar configurações</button></div>
