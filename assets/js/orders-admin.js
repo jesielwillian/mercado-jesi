@@ -287,6 +287,14 @@ function addStyles() {
       width:16px; height:16px; cursor:pointer;
       accent-color:#2455a5;
     }
+      .orders-bulk-actions {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-bottom:16px;
+}
   `;
 
   document.head.appendChild(style);
@@ -456,6 +464,21 @@ function renderPage() {
 
       <section class="orders-panel">
         <div class="orders-toolbar">
+        <div class="orders-bulk-actions" id="orders-bulk-actions">
+  <span class="orders-bulk-info" id="orders-bulk-info">
+    Selecione os pedidos confirmados que deseja arquivar.
+  </span>
+
+  <button
+    type="button"
+    class="orders-bulk-btn"
+    id="orders-bulk-archive"
+    disabled
+  >
+    <i class="fa-solid fa-box-archive" aria-hidden="true"></i>
+    Arquivar selecionados
+  </button>
+</div>
           <input
             id="orders-search"
             type="search"
