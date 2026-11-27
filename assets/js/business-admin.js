@@ -78,6 +78,23 @@ function localDateTime(value) {
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+// Aceita valores digitados em pt-BR (1.234,56) ou formato decimal (1234.56).
+function parseCouponValue(raw) {
+  let value = String(raw ?? "").trim().replace(/\s|R\$/gi, "");
+  if (!value) return NaN;
+  if (value.includes(",") && value.includes(".")) {
+    value = value.lastIndexOf(",") > value.lastIndexOf(".")
+      ? value.replace(/\./g, "").replace(",", ".")
+      : value.replace(/,/g, "");
+  } else if (value.includes(",")) {
+    value = value.replace(/\./g, "").replace(",", ".");
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(value)) {
+    value = value.replace(/\./g, "");
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Number(parsed.toFixed(2)) : NaN;
+}
+
 /* CUpons e ofertas */
 export function mountCouponsAdmin({content, notify}) {
   const root = setup(content, "Cupons e ofertas", notify);
@@ -100,7 +117,7 @@ export function mountCouponsAdmin({content, notify}) {
           <input type="hidden" name="id">
           ${field("Código","code","","text",'required maxlength="40"')}
           <label>Tipo de desconto<select name="discount_type"><option value="percentage">Percentual (%)</option><option value="fixed">Valor fixo (R$)</option></select></label>
-          ${field("Valor do desconto","discount_value","","number",'required min="0.01" step="0.01"')}
+          ${field("Valor do desconto","discount_value","","text",'required inputmode="decimal" data-currency-mask="true" placeholder="Ex.: 10,00"')}
           ${field("Início da validade","starts_at","","datetime-local")}
           ${field("Fim da validade","expires_at","","datetime-local")}
           ${field("Limite de utilizações","usage_limit","","number",'min="1" step="1"')}
@@ -164,35 +181,85 @@ export function mountCouponsAdmin({content, notify}) {
   async function save(event) {
     event.preventDefault();
     const f = event.currentTarget;
+    const submit = f.querySelector('[type="submit"]');
+    if (submit?.disabled) return;
+
     const v = new FormData(f);
-    const code = String(v.get("code")||"").trim().toUpperCase();
-    const type = v.get("discount_type");
-    const value = Number(v.get("discount_value"));
-    const limit = v.get("usage_limit");
-    const start = v.get("starts_at");
-    const end = v.get("expires_at");
-    if (!code || !["percentage","fixed"].includes(type) || !Number.isFinite(value) || value<=0 || (type==="percentage" && value>100)) {
-      notify("Confira o código e o valor do desconto.");
+    const code = String(v.get("code") || "").trim().toUpperCase().replace(/\s+/g, "");
+    const type = String(v.get("discount_type") || "");
+    // Lê diretamente o campo para não depender da ordem da máscara global.
+    const value = parseCouponValue(f.elements.discount_value.value);
+    const limitRaw = String(v.get("usage_limit") || "").trim();
+    const limit = limitRaw ? Number(limitRaw) : null;
+    const start = String(v.get("starts_at") || "").trim();
+    const end = String(v.get("expires_at") || "").trim();
+
+    if (!code || !/^[A-Z0-9_-]{2,40}$/.test(code)) {
+      notify("Informe um código de 2 a 40 caracteres (letras, números, hífen ou sublinhado).");
+      f.elements.code.focus();
       return;
     }
-    if (start && end && new Date(end)<=new Date(start)) {
+    if (!['percentage', 'fixed'].includes(type) || !Number.isFinite(value) || value <= 0 || (type === 'percentage' && value > 100)) {
+      notify(type === 'percentage'
+        ? "Informe um desconto percentual entre 0,01% e 100%."
+        : "Informe um valor de desconto válido, maior que zero.");
+      f.elements.discount_value.focus();
+      return;
+    }
+    if (limitRaw && (!Number.isSafeInteger(limit) || limit < 1)) {
+      notify("O limite de utilizações deve ser um número inteiro maior que zero.");
+      f.elements.usage_limit.focus();
+      return;
+    }
+    const startDate = start ? new Date(start) : null;
+    const endDate = end ? new Date(end) : null;
+    if ((startDate && Number.isNaN(startDate.getTime())) || (endDate && Number.isNaN(endDate.getTime()))) {
+      notify("Confira as datas de validade do cupom.");
+      return;
+    }
+    if (startDate && endDate && endDate <= startDate) {
       notify("A data final deve ser posterior à data inicial.");
+      f.elements.expires_at.focus();
       return;
     }
+
     const payload = {
-      code, discount_type:type, discount_value:value,
-      starts_at:start ? new Date(start).toISOString() : null,
-      expires_at:end ? new Date(end).toISOString() : null,
-      usage_limit:limit ? Number(limit) : null,
-      active:f.elements.active.checked
+      code,
+      discount_type: type,
+      discount_value: value,
+      starts_at: startDate ? startDate.toISOString() : null,
+      expires_at: endDate ? endDate.toISOString() : null,
+      usage_limit: limit,
+      active: f.elements.active.checked
     };
-    const id = v.get("id");
-    const result = id
-      ? await supabase.from("coupons").update(payload).eq("id",id)
-      : await supabase.from("coupons").insert(payload);
-    if (result.error) return notify(result.error.message);
-    notify("Cupom salvo.");
-    await load();
+    const id = String(v.get("id") || "").trim();
+
+    try {
+      if (submit) {
+        submit.disabled = true;
+        submit.textContent = id ? "Salvando alterações..." : "Cadastrando...";
+      }
+      const result = id
+        ? await supabase.from("coupons").update(payload).eq("id", id)
+        : await supabase.from("coupons").insert(payload);
+      if (result.error) {
+        const message = result.error.code === "23505"
+          ? "Já existe um cupom com esse código. Escolha outro código."
+          : translateErrorMessage(result.error.message, "Não foi possível salvar o cupom. Verifique os dados e as permissões.");
+        notify(message);
+        return;
+      }
+      notify("Cupom salvo com sucesso.");
+      await load();
+    } catch (error) {
+      console.error("Erro ao salvar cupom:", error);
+      notify(translateErrorMessage(error?.message, "Falha de conexão ao salvar o cupom. Tente novamente."));
+    } finally {
+      if (submit?.isConnected) {
+        submit.disabled = false;
+        submit.textContent = "Salvar cupom";
+      }
+    }
   }
 
   async function changeStatus(id) {
