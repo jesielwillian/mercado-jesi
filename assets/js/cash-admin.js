@@ -316,7 +316,7 @@ export function mountCashAdmin({ content, notify }) {
               <input name="description" type="text" maxlength="160" placeholder="Ex.: Pagamento de fornecedor" required>
             </label>
             <label>Valor (R$)
-              <input name="amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" required>
+              <input name="amount" type="text" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" required>
             </label>
             <div class="cash-notice">As movimentações manuais são registradas em dinheiro e afetam o saldo físico do caixa.</div>
             <button class="cash-button" type="submit">Registrar movimentação</button>
@@ -333,7 +333,7 @@ export function mountCashAdmin({ content, notify }) {
           <div class="cash-summary-line"><span>Saldo esperado</span><strong>${money(t.expected)}</strong></div>
           <form class="cash-form" data-form="close" style="margin-top:18px">
             <label>Dinheiro contado no caixa (R$)
-              <input name="closing_amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" required>
+              <input name="closing_amount" type="text" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" required>
             </label>
             <button class="cash-button danger" type="submit">Conferir e fechar caixa</button>
           </form>
@@ -445,7 +445,10 @@ export function mountCashAdmin({ content, notify }) {
 
   root.addEventListener("input", (event) => {
     const input = event.target;
-    if (!input.matches('input[name="opening_amount"]')) return;
+    if (!input.matches(
+      'input[name="opening_amount"], input[name="amount"], input[name="closing_amount"]',
+    )) return;
+
     input.value = formatMoneyInput(input.value);
   });
 
