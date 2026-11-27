@@ -29,3 +29,17 @@ test('processador WhatsApp não expõe token no frontend',()=>{
   assert.match(fn,/WHATSAPP_ACCESS_TOKEN/);
   assert.doesNotMatch(read('assets/js/app.js'),/WHATSAPP_ACCESS_TOKEN/);
 });
+
+
+test('service worker não intercepta o painel administrativo',()=>{
+  const sw=read('sw.js');
+  assert.match(sw,/url\.pathname\.startsWith\('\/admin\/'\)/);
+  assert.match(sw,/CACHE_VERSION = 'mercado-jesi-shell-v2'/);
+  assert.match(sw,/fetch\(request, \{ cache: 'no-store' \}\)/);
+});
+
+test('login administrativo impede submissões simultâneas',()=>{
+  const login=read('assets/js/admin-login.js');
+  assert.match(login,/if \(isSubmitting\) return/);
+  assert.match(login,/window\.location\.replace\("\/admin\/dashboard"\)/);
+});
