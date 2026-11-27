@@ -1,6 +1,11 @@
 // Máscara brasileira para telefones com DDD (fixo e celular).
 export function formatBrazilPhone(value) {
-  const digits = String(value || '').replace(/\D/g, '').slice(0, 11);
+  let digits = String(value || '').replace(/\D/g, '');
+  // Remove o código do país quando vier junto (+55), mantendo o DDD nacional.
+  if ((digits.length === 12 || digits.length === 13) && digits.startsWith('55')) {
+    digits = digits.slice(2);
+  }
+  digits = digits.slice(0, 11);
   if (!digits) return '';
   if (digits.length <= 2) return `(${digits}`;
   const ddd = digits.slice(0, 2);

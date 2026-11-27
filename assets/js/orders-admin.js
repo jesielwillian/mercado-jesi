@@ -18,7 +18,9 @@ const selectedOrderIds = new Set(),
       currency: "BRL",
     }).format(Number(v || 0)),
   formatPhone = (value = "") => {
-    const digits = String(value).replace(/\D/g, "").slice(0, 11);
+    let digits = String(value).replace(/\D/g, "");
+    if ((digits.length === 12 || digits.length === 13) && digits.startsWith("55")) digits = digits.slice(2);
+    digits = digits.slice(0, 11);
     if (!digits) return "Não informado";
     if (digits.length <= 2) return `(${digits}`;
     const ddd = digits.slice(0, 2), number = digits.slice(2);
