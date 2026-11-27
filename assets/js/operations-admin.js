@@ -1,1265 +1,174 @@
 import { supabase } from "./supabase.js";
-
 let activeCameraStop = null;
-
 const money = (value) =>
-  new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(Number(value || 0));
-
-const esc = (value) =>
-  String(value ?? "").replace(
-    /[&<>"']/g,
-    (char) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      })[char],
-  );
-
-const dateBR = (value) =>
-  value
-    ? new Intl.DateTimeFormat("pt-BR").format(new Date(`${value}T00:00:00`))
-    : "—";
-
-const ean13Svg = (code) => {
-  const L = [
-    "0001101",
-    "0011001",
-    "0010011",
-    "0111101",
-    "0100011",
-    "0110001",
-    "0101111",
-    "0111011",
-    "0110111",
-    "0001011",
-  ];
-
-  const G = [
-    "0100111",
-    "0110011",
-    "0011011",
-    "0100001",
-    "0011101",
-    "0111001",
-    "0000101",
-    "0010001",
-    "0001001",
-    "0010111",
-  ];
-
-  const R = [
-    "1110010",
-    "1100110",
-    "1101100",
-    "1000010",
-    "1011100",
-    "1001110",
-    "1010000",
-    "1000100",
-    "1001000",
-    "1110100",
-  ];
-
-  const parity = [
-    "LLLLLL",
-    "LLGLGG",
-    "LLGGLG",
-    "LLGGGL",
-    "LGLLGG",
-    "LGGLLG",
-    "LGGGLL",
-    "LGLGLG",
-    "LGLGGL",
-    "LGGLGL",
-  ];
-
-  if (!/^\d{13}$/.test(code)) return "";
-
-  const sum = [...code.slice(0, 12)].reduce(
-    (total, digit, index) => total + Number(digit) * (index % 2 ? 3 : 1),
-    0,
-  );
-
-  if ((10 - (sum % 10)) % 10 !== Number(code[12])) {
-    return "";
-  }
-
-  const pattern = parity[Number(code[0])];
-
-  let bits = "101";
-
-  for (let i = 0; i < 6; i++) {
-    bits += (pattern[i] === "L" ? L : G)[Number(code[i + 1])];
-  }
-
-  bits += "01010";
-
-  for (let i = 7; i < 13; i++) {
-    bits += R[Number(code[i])];
-  }
-
-  bits += "101";
-
-  const bars = [...bits]
-    .map((bit, index) =>
-      bit === "1" ? `<rect x="${index + 9}" y="0" width="1" height="48"/>` : "",
-    )
-    .join("");
-
-  return `
-    <svg
-      viewBox="0 0 113 62"
-      role="img"
-      aria-label="Código de barras ${esc(code)}"
-      style="width:100%;max-width:190px;height:58px"
-    >
-      <g fill="#111">${bars}</g>
-      <text
-        x="56.5"
-        y="60"
-        text-anchor="middle"
-        font-size="8"
-        fill="#111"
-      >${esc(code)}</text>
-    </svg>
-  `;
-};
-
-const statusLabels = {
-  pending: "Pendente",
-  confirmed: "Confirmado",
-  preparing: "Em preparação",
-  ready: "Pronto",
-  out_for_delivery: "Saiu para entrega",
-  completed: "Concluído",
-  cancelled: "Cancelado",
-};
-
-const statuses = [
-  "pending",
-  "confirmed",
-  "preparing",
-  "ready",
-  "out_for_delivery",
-  "completed",
-];
-
+    new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(Number(value || 0)),
+  esc = (value) =>
+    String(value ?? "").replace(
+      /[&<>"']/g,
+      (c) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#039;",
+        })[c],
+    ),
+  dateBR = (value) => {
+    if (!value) return "—";
+    const d = new Date(`${value}T00:00:00`);
+    return Number.isNaN(d.getTime())
+      ? String(value)
+      : d.toLocaleDateString("pt-BR");
+  },
+  statusLabels = {
+    pending: "Pendente",
+    paid: "Pago",
+    processing: "Em processamento",
+    ready: "Pronto",
+    shipped: "Enviado",
+    delivered: "Entregue",
+    cancelled: "Cancelado",
+    canceled: "Cancelado",
+    draft: "Rascunho",
+    ordered: "Pedido realizado",
+    partially_received: "Recebido parcialmente",
+    received: "Recebido",
+  },
+  purchaseStatusLabels = {
+    draft: "Rascunho",
+    received: "Recebido",
+    cancelled: "Cancelado",
+    canceled: "Cancelado",
+    pending: "Pendente",
+    ordered: "Pedido realizado",
+    partially_received: "Recebido parcialmente",
+  };
 function styles() {
-  if (document.querySelector("#operations-admin-styles")) return;
-
   const style = document.createElement("style");
-
-  style.id = "operations-admin-styles";
-
-  style.textContent = `
-    .ops-admin{
-      display:grid;
-      gap:18px
-    }
-
-    .ops-head{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:12px;
-      flex-wrap:wrap
-    }
-
-    .ops-head h2{
-      margin:0
-    }
-
-    .ops-tabs{
-      display:flex;
-      gap:7px;
-      flex-wrap:wrap
-    }
-
-    .ops-tabs button,
-    .ops-btn{
-      border:1px solid var(--line,#e5ece6);
-      background:#fff;
-      color:var(--ink,#293b30);
-      border-radius:9px;
-      padding:8px 12px;
-      font:inherit;
-      font-size:12px;
-      cursor:pointer;
-      transition:.18s ease
-    }
-
-    .ops-tabs button:hover,
-    .ops-btn:hover{
-      transform:translateY(-1px);
-      border-color:#b9d2c0
-    }
-
-    .ops-tabs button.active,
-    .ops-btn.primary{
-      background:var(--green,#347b59);
-      border-color:var(--green,#347b59);
-      color:#fff
-    }
-
-    .ops-panel{
-      background:#fff;
-      border:1px solid var(--line,#e5ece6);
-      border-radius:14px;
-      padding:16px;
-      min-width:0
-    }
-
-    .ops-grid{
-      display:grid;
-      grid-template-columns:repeat(3,minmax(0,1fr));
-      gap:12px
-    }
-
-    .ops-field{
-      display:grid;
-      gap:5px;
-      font-size:12px
-    }
-
-    .ops-field input,
-    .ops-field select,
-    .ops-field textarea,
-    .ops-search{
-      width:100%;
-      min-height:36px;
-      border:1px solid var(--line,#e5ece6);
-      border-radius:8px;
-      padding:8px 10px;
-      font:inherit;
-      font-size:12px;
-      background:#fff;
-      color:var(--ink,#293b30);
-      box-sizing:border-box
-    }
-
-    .ops-field input:focus,
-    .ops-field select:focus,
-    .ops-field textarea:focus{
-      outline:none;
-      border-color:#7fb197;
-      box-shadow:0 0 0 3px rgba(23,107,67,.08)
-    }
-
-    .ops-table{
-      width:100%;
-      border-collapse:collapse;
-      font-size:12px
-    }
-
-    .ops-table th,
-    .ops-table td{
-      text-align:left;
-      padding:10px 8px;
-      border-bottom:1px solid #edf1ed;
-      vertical-align:middle
-    }
-
-    .ops-table th{
-      color:#718078;
-      font-size:10px;
-      letter-spacing:.04em
-    }
-
-    .ops-muted{
-      color:#718078;
-      font-size:11px
-    }
-
-    .ops-alert{
-      padding:10px 12px;
-      background:#fff6e8;
-      border:1px solid #f3dfb8;
-      border-radius:9px;
-      color:#76531b;
-      font-size:12px
-    }
-
-    .ops-kanban{
-      display:grid;
-      grid-template-columns:repeat(3,minmax(230px,1fr));
-      gap:12px;
-      overflow:auto
-    }
-
-    .ops-lane{
-      background:#f6f8f6;
-      border-radius:12px;
-      padding:10px;
-      min-height:180px
-    }
-
-    .ops-lane h3{
-      font-size:13px;
-      margin:2px 4px 10px
-    }
-
-    .ops-order{
-      background:#fff;
-      border:1px solid #e5ece6;
-      border-radius:10px;
-      padding:10px;
-      margin-bottom:8px;
-      display:grid;
-      gap:6px
-    }
-
-    .ops-order select{
-      width:100%;
-      padding:6px;
-      border:1px solid #e5ece6;
-      border-radius:7px;
-      font-size:11px
-    }
-
-    .ops-actions{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      align-items:center
-    }
-
-    .barcode-hero{
-      position:relative;
-      overflow:hidden;
-      margin-top:2px;
-      border:1px solid #dfe9e2;
-      border-radius:20px;
-      background:linear-gradient(
-        135deg,
-        #fff 0%,
-        #f5faf6 58%,
-        #edf6ef 100%
-      );
-      padding:24px;
-      box-shadow:0 16px 42px rgba(23,65,40,.07)
-    }
-
-    .barcode-hero:before{
-      content:"";
-      position:absolute;
-      width:260px;
-      height:260px;
-      right:-110px;
-      top:-140px;
-      border-radius:50%;
-      background:radial-gradient(
-        circle,
-        rgba(244,214,78,.22),
-        rgba(244,214,78,0) 68%
-      );
-      pointer-events:none
-    }
-
-    .barcode-top{
-      position:relative;
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:18px;
-      margin-bottom:22px
-    }
-
-    .barcode-title{
-      display:flex;
-      align-items:flex-start;
-      gap:14px
-    }
-
-    .barcode-icon{
-      width:48px;
-      height:48px;
-      flex:0 0 48px;
-      display:grid;
-      place-items:center;
-      border-radius:15px;
-      background:linear-gradient(145deg,#176b43,#104d31);
-      color:#f4d64e;
-      font-size:19px;
-      box-shadow:0 10px 22px rgba(16,77,49,.18)
-    }
-
-    .barcode-title h3{
-      margin:0;
-      font-size:16px;
-      letter-spacing:-.025em;
-      color:#203128
-    }
-
-    .barcode-title p{
-      margin:5px 0 0;
-      color:#7b8980;
-      font-size:10px;
-      line-height:1.55
-    }
-
-    .barcode-live{
-      display:inline-flex;
-      align-items:center;
-      gap:7px;
-      padding:7px 10px;
-      border:1px solid #dce9df;
-      border-radius:999px;
-      background:#fff;
-      color:#176b43;
-      font-size:9px;
-      font-weight:800;
-      white-space:nowrap
-    }
-
-    .barcode-live i{
-      font-size:7px;
-      color:#2ba66a;
-      animation:barcodePulse 2s ease-in-out infinite
-    }
-
-    @keyframes barcodePulse{
-      0%,100%{
-        opacity:1;
-        transform:scale(1)
-      }
-
-      50%{
-        opacity:.45;
-        transform:scale(.72)
-      }
-    }
-
-    .barcode-workspace{
-      position:relative;
-      display:grid;
-      grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);
-      gap:18px;
-      align-items:stretch
-    }
-
-    .barcode-search-card,
-    .barcode-camera-card{
-      background:rgba(255,255,255,.82);
-      border:1px solid #e3ebe5;
-      border-radius:16px;
-      padding:16px
-    }
-
-    .barcode-label{
-      display:block;
-      margin:0 0 9px;
-      color:#53645a;
-      font-size:9px;
-      font-weight:800;
-      letter-spacing:.08em;
-      text-transform:uppercase
-    }
-
-    .barcode-input-row{
-      display:grid;
-      grid-template-columns:1fr auto;
-      gap:8px
-    }
-
-    .barcode-input-wrap{
-      position:relative
-    }
-
-    .barcode-input-wrap i{
-      position:absolute;
-      left:12px;
-      top:50%;
-      transform:translateY(-50%);
-      color:#7f9487;
-      font-size:13px;
-      pointer-events:none
-    }
-
-    .barcode-input{
-      width:100%;
-      height:44px;
-      border:1px solid #dbe5de;
-      border-radius:11px;
-      padding:0 12px 0 36px;
-      background:#fbfdfb;
-      color:#203128;
-      font:inherit;
-      font-size:12px;
-      outline:none;
-      transition:.2s
-    }
-
-    .barcode-input:focus{
-      border-color:#7fb197;
-      box-shadow:0 0 0 4px rgba(23,107,67,.08);
-      background:#fff
-    }
-
-    .barcode-search-btn{
-      height:44px;
-      padding:0 16px;
-      border:0;
-      border-radius:11px;
-      background:#176b43;
-      color:#fff;
-      font:inherit;
-      font-size:10px;
-      font-weight:800;
-      cursor:pointer;
-      box-shadow:0 8px 18px rgba(23,107,67,.16)
-    }
-
-    .barcode-search-btn:hover{
-      background:#104d31;
-      transform:translateY(-1px)
-    }
-
-    .barcode-actions{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      margin-top:11px
-    }
-
-    .barcode-action{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:7px;
-      min-height:36px;
-      padding:0 12px;
-      border:1px solid #dfe8e2;
-      border-radius:10px;
-      background:#fff;
-      color:#405548;
-      font:inherit;
-      font-size:9px;
-      font-weight:800;
-      cursor:pointer
-    }
-
-    .barcode-action:hover:not(:disabled){
-      background:#f1f7f2;
-      border-color:#b9d2c0;
-      color:#176b43;
-      transform:translateY(-1px)
-    }
-
-    .barcode-action:disabled{
-      opacity:.48;
-      cursor:not-allowed
-    }
-
-    .barcode-hint{
-      display:flex;
-      align-items:flex-start;
-      gap:8px;
-      margin:14px 0 0;
-      color:#849189;
-      font-size:9px;
-      line-height:1.55
-    }
-
-    .barcode-hint i{
-      margin-top:1px;
-      color:#176b43
-    }
-
-    .barcode-camera-card{
-      display:flex;
-      flex-direction:column;
-      min-height:190px
-    }
-
-    .barcode-camera-head{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:8px;
-      margin-bottom:10px
-    }
-
-    .barcode-camera-head strong{
-      font-size:10px;
-      color:#405548
-    }
-
-    .barcode-camera-head span{
-      font-size:8px;
-      color:#9aa59d
-    }
-
-    .barcode-camera-frame{
-      position:relative;
-      min-height:150px;
-      flex:1;
-      display:grid;
-      place-items:center;
-      overflow:hidden;
-      border-radius:13px;
-      background:linear-gradient(
-        145deg,
-        #f7faf8 0%,
-        #edf5f0 100%
-      );
-      box-shadow:inset 0 0 0 1px #e0ebe4
-    }
-
-    .barcode-camera-frame:before,
-    .barcode-camera-frame:after{
-      content:"";
-      position:absolute;
-      width:28px;
-      height:28px;
-      border-color:#7fbe9b;
-      border-style:solid;
-      z-index:3;
-      pointer-events:none
-    }
-
-    .barcode-camera-frame:before{
-      left:16px;
-      top:16px;
-      border-width:2px 0 0 2px
-    }
-
-    .barcode-camera-frame:after{
-      right:16px;
-      bottom:16px;
-      border-width:0 2px 2px 0
-    }
-
-    .barcode-camera-frame .scan-line{
-      position:absolute;
-      left:18px;
-      right:18px;
-      top:50%;
-      height:1px;
-      background:linear-gradient(
-        90deg,
-        transparent,
-        #72b892,
-        transparent
-      );
-      box-shadow:0 0 10px rgba(114,184,146,.35);
-      z-index:4;
-      opacity:.8;
-      animation:barcodeScan 2.4s ease-in-out infinite
-    }
-
-    @keyframes barcodeScan{
-      0%,100%{
-        transform:translateY(-42px);
-        opacity:.15
-      }
-
-      50%{
-        transform:translateY(42px);
-        opacity:1
-      }
-    }
-
-    .barcode-camera-frame video{
-      width:100%;
-      height:100%;
-      min-height:150px;
-      object-fit:cover;
-      border-radius:13px
-    }
-
-    .barcode-camera-empty{
-      position:absolute;
-      z-index:2;
-      text-align:center;
-      color:#718279;
-      font-size:9px;
-      line-height:1.55;
-      padding:18px
-    }
-
-    .barcode-camera-empty i{
-      display:block;
-      font-size:24px;
-      color:#72a98b;
-      margin-bottom:8px
-    }
-
-    .barcode-result{
-      margin-top:18px
-    }
-
-    .barcode-result:empty{
-      display:none
-    }
-
-    .barcode-result .ops-stat{
-      display:grid;
-      grid-template-columns:1fr auto;
-      gap:5px 14px;
-      align-items:center;
-      background:#f8fbf8;
-      border:1px solid #dfe9e2;
-      border-radius:14px;
-      padding:14px 16px
-    }
-
-    .barcode-result .ops-stat strong:first-child{
-      font-size:14px;
-      color:#203128
-    }
-
-    .barcode-result .ops-stat strong:last-child{
-      grid-column:2;
-      grid-row:1 / span 2;
-      font-size:18px;
-      color:#176b43
-    }
-
-    .barcode-result .ops-stat span{
-      font-size:9px;
-      color:#7b8980
-    }
-
-    .barcode-result .ops-alert{
-      margin:0
-    }
-
-    .ops-camera{
-      max-width:480px;
-      width:100%;
-      border-radius:12px;
-      background:#dcebed;
-      display:block
-    }
-
-    .ops-label-sheet{
-      display:grid;
-      grid-template-columns:repeat(3,1fr);
-      gap:8px
-    }
-
-    .ops-label{
-      border:1px dashed #888;
-      padding:12px;
-      min-height:85px;
-      display:grid;
-      align-content:center;
-      text-align:center;
-      break-inside:avoid
-    }
-
-    .ops-label strong{
-      font-size:14px
-    }
-
-    .ops-label small{
-      font-size:10px
-    }
-
-    .ops-stat{
-      border:1px solid #e5ece6;
-      border-radius:10px;
-      padding:12px
-    }
-
-    .ops-stat strong{
-      display:block;
-      font-size:20px
-    }
-
-    .ops-stat span{
-      color:#718078;
-      font-size:11px
-    }
-
-    @media(max-width:900px){
-      .barcode-workspace{
-        grid-template-columns:1fr
-      }
-
-      .barcode-camera-card{
-        min-height:230px
-      }
-    }
-
-    @media(max-width:760px){
-      .barcode-hero{
-        padding:17px
-      }
-
-      .barcode-top{
-        gap:12px
-      }
-
-      .barcode-live{
-        display:none
-      }
-
-      .barcode-title h3{
-        font-size:14px
-      }
-
-      .barcode-title p{
-        font-size:9px
-      }
-
-      .barcode-icon{
-        width:42px;
-        height:42px;
-        flex-basis:42px;
-        border-radius:13px
-      }
-
-      .barcode-input-row{
-        grid-template-columns:1fr
-      }
-
-      .barcode-search-btn{
-        width:100%
-      }
-
-      .barcode-camera-card{
-        min-height:220px
-      }
-
-      .ops-grid{
-        grid-template-columns:1fr
-      }
-
-      .ops-kanban{
-        grid-template-columns:repeat(3,250px)
-      }
-
-      .ops-table-wrap{
-        overflow:auto
-      }
-
-      .ops-label-sheet{
-        grid-template-columns:repeat(2,1fr)
-      }
-    }
-
-    @media print{
-      body *{
-        visibility:hidden!important
-      }
-
-      .ops-label-sheet,
-      .ops-label-sheet *{
-        visibility:visible!important
-      }
-
-      .ops-label-sheet{
-        position:absolute;
-        inset:0;
-        grid-template-columns:repeat(3,1fr)
-      }
-
-      .ops-label{
-        border:1px solid #bbb
-      }
-    }
-  `;
-
-  document.head.append(style);
+  style.dataset.operationsStyles = "true";
+  style.textContent = `.ops-shell{display:grid;gap:20px}.ops-panel{background:#fff;border:1px solid #e7ece8;border-radius:18px;padding:22px;box-shadow:0 8px 24px rgba(28,52,38,.05)}.ops-panel h3{margin:0 0 16px;font-size:17px;color:#20352b}.ops-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.ops-grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.ops-field{display:grid;gap:7px;color:#506057;font-size:12px;font-weight:700}.ops-field input,.ops-field select,.ops-field textarea{width:100%;box-sizing:border-box;border:1px solid #dce5df;border-radius:11px;background:#fbfdfb;color:#20352b;padding:11px 12px;font:inherit;outline:none;transition:.2s}.ops-field input:focus,.ops-field select:focus,.ops-field textarea:focus{border-color:#8eb7a0;box-shadow:0 0 0 3px rgba(86,145,110,.1);background:#fff}.ops-field textarea{min-height:90px;resize:vertical}.ops-actions{display:flex;flex-wrap:wrap;gap:9px;align-items:center}.ops-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 14px;border:1px solid #dce5df;border-radius:10px;background:#fff;color:#31533f;font:inherit;font-size:12px;font-weight:800;cursor:pointer;transition:.2s ease}.ops-btn:hover{transform:translateY(-1px);box-shadow:0 7px 16px rgba(30,70,45,.09)}.ops-btn.primary{background:#315f46;border-color:#315f46;color:#fff}.ops-btn.primary:hover{background:#264b37;border-color:#264b37}.ops-btn.danger{background:#fff8f8;border-color:#ead7d7;color:#b45151}.ops-btn.danger:hover{background:#b45151;border-color:#b45151;color:#fff}.ops-btn:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}.ops-muted{margin:6px 0 0;color:#7a8780;font-size:11px;line-height:1.6}.ops-table-wrap{overflow:auto}.ops-table{width:100%;border-collapse:collapse;min-width:760px}.ops-table th{padding:11px 10px;text-align:left;font-size:10px;letter-spacing:.05em;color:#7a8780;border-bottom:1px solid #e7ece8}.ops-table td{padding:13px 10px;border-bottom:1px solid #edf1ed;color:#34483d;font-size:12px;vertical-align:middle}.ops-table tr:last-child td{border-bottom:0}.ops-section-heading{display:flex;justify-content:space-between;align-items:center;gap:18px;margin:0 0 16px}.ops-section-heading h3{margin:0}.ops-section-heading p{margin:5px 0 0}.ops-clear-history{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 14px;border:1px solid #ead7d7;border-radius:10px;background:#fff8f8;color:#b45151;font:inherit;font-size:11px;font-weight:800;cursor:pointer;transition:.2s ease}.ops-clear-history:hover{background:#b45151;border-color:#b45151;color:#fff;transform:translateY(-1px);box-shadow:0 8px 18px rgba(180,81,81,.16)}.ops-clear-history:disabled{opacity:.6;cursor:not-allowed;transform:none}.ops-items{display:grid;gap:7px;margin-top:12px}.ops-item{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid #edf1ed;border-radius:10px;background:#fafcfa}.ops-camera{position:relative;overflow:hidden;border-radius:18px;background:#dcebed;border:1px solid #d6e4e2;min-height:270px;display:grid;place-items:center}.ops-camera video{width:100%;height:100%;max-height:420px;object-fit:cover;display:block}.ops-camera-empty{padding:30px;text-align:center;color:#60746b;font-size:13px}.ops-badge{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;background:#eef5ef;color:#315f46;font-size:10px;font-weight:800}.ops-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.ops-stat{padding:15px;border:1px solid #e7ece8;border-radius:14px;background:#fbfdfb}.ops-stat strong{display:block;margin-top:5px;font-size:19px;color:#21392b}.ops-kanban{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:14px;overflow:auto}.ops-column{background:#f8faf8;border:1px solid #e7ece8;border-radius:15px;padding:12px}.ops-column h4{margin:0 0 10px;font-size:12px;color:#385446}.ops-card{padding:12px;margin-bottom:8px;border:1px solid #e4ebe6;border-radius:12px;background:#fff}.ops-card:last-child{margin-bottom:0}.ops-labels{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}.ops-label{padding:16px;border:1px dashed #cbd9d0;border-radius:12px;background:#fbfdfb}.ops-barcode{font-family:monospace;letter-spacing:2px;font-size:20px;text-align:center;padding:10px}.ops-empty{padding:28px;text-align:center;color:#7a8780}.ops-spinner{animation:opsSpin .8s linear infinite}@keyframes opsSpin{to{transform:rotate(360deg)}}@media(max-width:900px){.ops-grid,.ops-grid-3,.ops-stat-grid{grid-template-columns:1fr 1fr}.ops-kanban{grid-template-columns:repeat(4,280px)}}@media(max-width:640px){.ops-grid,.ops-grid-3,.ops-stat-grid{grid-template-columns:1fr}.ops-panel{padding:16px}.ops-section-heading{align-items:flex-start;flex-direction:column}.ops-clear-history{width:100%}}`;
+  document.head.appendChild(style);
 }
-
 export function mountOperationsAdmin({ content, notify = () => {} }) {
   styles();
-
-  content.innerHTML = `
-    <section class="ops-admin">
-
-      <header class="ops-head">
-        <div>
-          <span class="eyebrow">GESTÃO E AUTOMAÇÃO</span>
-          <h2>Operações avançadas</h2>
-          <p class="ops-muted">
-            Compras, validade, atendimento, etiquetas, fidelidade e leitura de produtos.
-          </p>
-        </div>
-
-        <button class="ops-btn" id="ops-refresh">
-          <i class="fa-solid fa-rotate"></i>
-          Atualizar
-        </button>
-      </header>
-
-      <nav class="ops-tabs" aria-label="Operações avançadas">
-        <button class="active" data-tab="purchases">Compras</button>
-        <button data-tab="lots">Validade e lotes</button>
-        <button data-tab="kanban">Separação de pedidos</button>
-        <button data-tab="barcode">Código de barras</button>
-        <button data-tab="labels">Etiquetas</button>
-        <button data-tab="loyalty">Fidelidade</button>
-      </nav>
-
-      <div id="ops-view"></div>
-
-    </section>
-  `;
-
-  const view = content.querySelector("#ops-view");
-
-  let active = "purchases";
-  let realtime = null;
-  let products = [];
-  let suppliers = [];
-
-  const loadBase = async () => {
-    const [productsResult, suppliersResult] = await Promise.all([
-      supabase
-        .from("products")
-        .select("id,name,barcode,sku,price,cost_price,unit")
-        .eq("active", true)
-        .order("name")
-        .limit(1000),
-
-      supabase
-        .from("suppliers")
-        .select("id,name")
-        .eq("active", true)
-        .order("name"),
-    ]);
-
-    if (productsResult.error) {
-      throw productsResult.error;
-    }
-
-    if (suppliersResult.error) {
-      throw suppliersResult.error;
-    }
-
-    products = productsResult.data || [];
-    suppliers = suppliersResult.data || [];
-  };
-
-  const productOptions = (selected = "") =>
-    products
-      .map(
-        (product) => `
-        <option
-          value="${product.id}"
-          ${product.id === selected ? "selected" : ""}
-        >
-          ${esc(product.name)}
-          ${product.barcode ? ` · ${esc(product.barcode)}` : ""}
-        </option>
-      `,
-      )
-      .join("");
-
-  const tab = (name) => {
-    active = name;
-
-    content.querySelectorAll("[data-tab]").forEach((button) => {
-      button.classList.toggle("active", button.dataset.tab === name);
-    });
-
-    render().catch((error) => {
-      console.error(error);
-
-      view.innerHTML = `
-        <div class="ops-alert">
-          Não foi possível carregar esta área:
-          ${esc(error.message || "Erro desconhecido")}
-        </div>
-      `;
-    });
-  };
-
+  let view = content;
+  view.innerHTML = `<div class="ops-shell"><div class="ops-panel"><h2 style="margin:0;color:#20352b">Operações Avançadas</h2><p class="ops-muted">Compras, estoque, lotes, pedidos, códigos, fidelidade e etiquetas.</p></div><div id="ops-content"></div></div>`;
+  view = view.querySelector("#ops-content");
+  let currentTab = "purchases";
+  const tabs = [
+    ["purchases", "Compras", "fa-cart-shopping"],
+    ["lots", "Lotes", "fa-boxes-stacked"],
+    ["kanban", "Pedidos", "fa-table-columns"],
+    ["barcode", "Código de barras", "fa-barcode"],
+    ["labels", "Etiquetas", "fa-tags"],
+    ["loyalty", "Fidelidade", "fa-star"],
+  ];
+  function tabsHTML() {
+    return `<div class="ops-panel" style="padding:10px"><div class="ops-actions">${tabs.map(([id, label, icon]) => `<button type="button" class="ops-btn ${currentTab === id ? "primary" : ""}" data-ops-tab="${id}"><i class="fa-solid ${icon}"></i>${label}</button>`).join("")}</div></div>`;
+  }
   async function renderPurchases() {
     const { data: orders, error } = await supabase
       .from("purchase_orders")
       .select(
-        `
-        id,
-        status,
-        expected_at,
-        subtotal,
-        created_at,
-        suppliers(name),
-        purchase_order_items(
-          id,
-          product_id,
-          quantity,
-          received_quantity,
-          unit_cost,
-          expiry_date,
-          products(name)
-        )
-      `,
+        `id,status,expected_at,subtotal,created_at,suppliers(name),purchase_order_items(id,product_id,quantity,received_quantity,unit_cost,expiry_date,lot_code,products(name))`,
       )
       .order("created_at", { ascending: false })
       .limit(50);
-
-    if (error) {
-      throw error;
-    }
-
-    view.innerHTML = `
-      <div class="ops-panel">
-
-        <h3>Novo pedido de compra</h3>
-
-        <form id="ops-purchase-form" class="ops-grid">
-
-          <label class="ops-field">
-            Fornecedor
-
-            <select name="supplier_id" required>
-              <option value="">Selecione</option>
-
-              ${suppliers
-                .map(
-                  (supplier) => `
-                  <option value="${supplier.id}">
-                    ${esc(supplier.name)}
-                  </option>
-                `,
-                )
-                .join("")}
-            </select>
-          </label>
-
-          <label class="ops-field">
-            Previsão de entrega
-            <input
-              name="expected_at"
-              type="date"
-            >
-          </label>
-
-          <label class="ops-field">
-            Observações
-            <input
-              name="notes"
-              maxlength="500"
-            >
-          </label>
-
-          <div class="ops-field">
-            <span>Produto</span>
-
-            <select id="ops-purchase-product">
-              <option value="">Selecione o produto</option>
-              ${productOptions()}
-            </select>
-          </div>
-
-          <label class="ops-field">
-            Quantidade
-
-            <input
-              id="ops-purchase-qty"
-              type="number"
-              min="0.001"
-              step="0.001"
-              value="1"
-            >
-          </label>
-
-          <label class="ops-field">
-            Custo unitário (R$)
-
-            <input
-              id="ops-purchase-cost"
-              type="number"
-              min="0.01"
-              step="0.01"
-              value=""
-              placeholder="0,00"
-              required
-            >
-          </label>
-
-          <label class="ops-field">
-            Validade (opcional)
-
-            <input
-              id="ops-purchase-expiry"
-              type="date"
-            >
-          </label>
-
-          <label class="ops-field">
-            Código do lote
-
-            <input
-              id="ops-purchase-lot"
-              maxlength="80"
-              placeholder="Lote do fabricante"
-            >
-          </label>
-
-          <div class="ops-actions">
-
-            <button
-              class="ops-btn"
-              type="button"
-              id="ops-add-purchase-item"
-            >
-              Adicionar item
-            </button>
-
-            <button
-              class="ops-btn primary"
-              type="submit"
-            >
-              Salvar pedido de compra
-            </button>
-
-          </div>
-
-        </form>
-
-        <div
-          id="ops-purchase-items"
-          class="ops-muted"
-          style="margin-top:12px"
-        >
-          Nenhum item adicionado.
-        </div>
-
-      </div>
-
-      <div class="ops-panel">
-
-        <h3>Pedidos de compra recentes</h3>
-
-        <div class="ops-table-wrap">
-
-          <table class="ops-table">
-
-            <thead>
-              <tr>
-                <th>FORNECEDOR</th>
-                <th>DATA</th>
-                <th>STATUS</th>
-                <th>ITENS</th>
-                <th>VALOR</th>
-                <th>AÇÃO</th>
-              </tr>
-            </thead>
-
-            <tbody>
-
-              ${
-                (orders || [])
-                  .map(
-                    (order) => `
-                    <tr>
-
-                      <td>
-                        ${esc(order.suppliers?.name || "Fornecedor")}
-                      </td>
-
-                      <td>
-                        ${dateBR(order.expected_at)}
-                      </td>
-
-                      <td>
-                        ${esc(order.status)}
-                      </td>
-
-                      <td>
-                        ${(order.purchase_order_items || []).length}
-                      </td>
-
-                      <td>
-                        ${money(order.subtotal)}
-                      </td>
-
-                      <td>
-
-                        ${
-                          order.status === "received"
-                            ? "Recebido"
-                            : `
-                              <button
-                                class="ops-btn primary"
-                                data-receive-purchase="${order.id}"
-                              >
-                                Receber e atualizar estoque
-                              </button>
-                            `
-                        }
-
-                      </td>
-
-                    </tr>
-                  `,
-                  )
-                  .join("") ||
-                `
-                  <tr>
-                    <td colspan="6">
-                      Nenhum pedido de compra cadastrado.
-                    </td>
-                  </tr>
-                `
-              }
-
-            </tbody>
-
-          </table>
-
-        </div>
-
-        <p class="ops-muted">
-          O recebimento é atômico: atualiza estoque, custo e lote de validade em uma única transação.
-        </p>
-
-      </div>
-    `;
-
+    if (error) throw error;
+    const { data: suppliers, error: supplierError } = await supabase
+      .from("suppliers")
+      .select("id,name")
+      .order("name");
+    if (supplierError) throw supplierError;
+    const { data: products, error: productError } = await supabase
+      .from("products")
+      .select("id,name")
+      .order("name");
+    if (productError) throw productError;
+    view.innerHTML = `${tabsHTML()}<div class="ops-panel"><h3>Novo pedido de compra</h3><form id="ops-purchase-form"><div class="ops-grid"><label class="ops-field">Fornecedor<select name="supplier_id" id="ops-purchase-supplier" required><option value="">Selecione...</option>${(suppliers || []).map((item) => `<option value="${item.id}">${esc(item.name)}</option>`).join("")}</select></label><label class="ops-field">Previsão de entrega<input name="expected_at" type="date"></label></div><label class="ops-field" style="margin-top:14px">Observações<textarea name="notes" placeholder="Observações do pedido"></textarea></label><div class="ops-grid-3" style="margin-top:14px"><label class="ops-field">Produto<select id="ops-purchase-product"><option value="">Selecione...</option>${(products || []).map((item) => `<option value="${item.id}">${esc(item.name)}</option>`).join("")}</select></label><label class="ops-field">Quantidade<input id="ops-purchase-qty" type="number" min="0.001" step="0.001" value="1"></label><label class="ops-field">Custo unitário (R$)<input id="ops-purchase-cost" type="number" min="0.01" step="0.01" inputmode="decimal" value="" placeholder="0,00" required></label></div><div class="ops-grid" style="margin-top:14px"><label class="ops-field">Validade (opcional)<input id="ops-purchase-expiry" type="date"></label><label class="ops-field">Código do lote<input id="ops-purchase-lot" type="text" placeholder="Ex.: LOTE-001"></label></div><div class="ops-actions" style="margin-top:14px"><button type="button" class="ops-btn" id="ops-add-purchase-item"><i class="fa-solid fa-plus"></i>Adicionar item</button></div><div id="ops-purchase-items" class="ops-items"></div><div class="ops-actions" style="margin-top:18px"><button type="submit" class="ops-btn primary"><i class="fa-solid fa-floppy-disk"></i>Salvar pedido de compra</button></div></form></div><div class="ops-panel"><div class="ops-section-heading"><div><h3>Pedidos de compra recentes</h3><p class="ops-muted">Histórico dos pedidos de compra realizados.</p></div><button type="button" class="ops-clear-history" id="ops-clear-purchases"><i class="fa-solid fa-trash-can"></i>Limpar histórico</button></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>FORNECEDOR</th><th>DATA</th><th>STATUS</th><th>ITENS</th><th>VALOR</th><th>AÇÃO</th></tr></thead><tbody>${(orders || []).map((order) => `<tr><td>${esc(order.suppliers?.name || "Fornecedor")}</td><td>${dateBR(order.expected_at)}</td><td><span class="ops-badge">${esc(purchaseStatusLabels[order.status] || order.status)}</span></td><td>${(order.purchase_order_items || []).length}</td><td>${money(order.subtotal)}</td><td>${order.status === "received" ? "Recebido" : `<button class="ops-btn primary" data-receive-purchase="${order.id}"><i class="fa-solid fa-box-open"></i>Receber e atualizar estoque</button>`}</td></tr>`).join("") || `<tr><td colspan="6"><div class="ops-empty">Nenhum pedido de compra cadastrado.</div></td></tr>`}</tbody></table></div><p class="ops-muted">O recebimento é atômico: atualiza estoque, custo e lote de validade em uma única transação.</p></div>`;
+    view.querySelectorAll("[data-ops-tab]").forEach((button) =>
+      button.addEventListener("click", async () => {
+        currentTab = button.dataset.opsTab;
+        await render();
+      }),
+    );
+    view
+      .querySelector("#ops-clear-purchases")
+      ?.addEventListener("click", async () => {
+        const confirmed = confirm(
+          "Tem certeza que deseja limpar o histórico de pedidos de compra?\\n\\nEssa ação removerá os pedidos registrados.",
+        );
+        if (!confirmed) return;
+        const button = view.querySelector("#ops-clear-purchases");
+        try {
+          button.disabled = true;
+          button.innerHTML =
+            '<i class="fa-solid fa-spinner fa-spin"></i> Limpando...';
+          const { data: ordersToDelete, error: loadError } = await supabase
+            .from("purchase_orders")
+            .select("id");
+          if (loadError) throw loadError;
+          if (!ordersToDelete?.length) {
+            notify("O histórico já está vazio.");
+            return;
+          }
+          const ids = ordersToDelete.map((item) => item.id);
+          const { error: itemError } = await supabase
+            .from("purchase_order_items")
+            .delete()
+            .in("purchase_order_id", ids);
+          if (itemError) throw itemError;
+          const { error: orderError } = await supabase
+            .from("purchase_orders")
+            .delete()
+            .in("id", ids);
+          if (orderError) throw orderError;
+          notify("Histórico de pedidos de compra limpo com sucesso.");
+          await renderPurchases();
+        } catch (error) {
+          console.error("Erro ao limpar histórico:", error);
+          notify(error?.message || "Não foi possível limpar o histórico.");
+        } finally {
+          const button = view.querySelector("#ops-clear-purchases");
+          if (button) {
+            button.disabled = false;
+            button.innerHTML =
+              '<i class="fa-solid fa-trash-can"></i> Limpar histórico';
+          }
+        }
+      });
     const items = [];
-
-    const itemsRoot = view.querySelector("#ops-purchase-items");
-
-    const productSelect = view.querySelector("#ops-purchase-product");
-
-    const qtyInput = view.querySelector("#ops-purchase-qty");
-
-    const costInput = view.querySelector("#ops-purchase-cost");
-
-    const expiryInput = view.querySelector("#ops-purchase-expiry");
-
-    const lotInput = view.querySelector("#ops-purchase-lot");
-
-    const addButton = view.querySelector("#ops-add-purchase-item");
-
+    const productSelect = view.querySelector("#ops-purchase-product"),
+      qtyInput = view.querySelector("#ops-purchase-qty"),
+      costInput = view.querySelector("#ops-purchase-cost"),
+      expiryInput = view.querySelector("#ops-purchase-expiry"),
+      lotInput = view.querySelector("#ops-purchase-lot"),
+      addButton = view.querySelector("#ops-add-purchase-item"),
+      itemsRoot = view.querySelector("#ops-purchase-items"),
+      purchaseForm = view.querySelector("#ops-purchase-form");
     addButton.addEventListener("click", () => {
-      const product = products.find((item) => item.id === productSelect.value);
-
-      const qty = Number(String(qtyInput.value || "").replace(",", "."));
-
-      const cost = Number(String(costInput.value || "").replace(",", "."));
-
+      const product = products.find((item) => item.id === productSelect.value),
+        qty = Number(String(qtyInput.value || "").replace(",", ".")),
+        cost = Number(String(costInput.value || "").replace(",", "."));
       if (!product) {
         notify("Selecione um produto.");
         productSelect.focus();
         return;
       }
-
       if (!Number.isFinite(qty) || qty <= 0) {
         notify("Informe uma quantidade válida.");
         qtyInput.focus();
         return;
       }
-
       if (!Number.isFinite(cost) || cost <= 0) {
         notify("Informe um custo unitário maior que R$ 0,00.");
         costInput.focus();
         return;
       }
-
       items.push({
         product_id: product.id,
         product_name: product.name,
@@ -1268,56 +177,43 @@ export function mountOperationsAdmin({ content, notify = () => {} }) {
         expiry_date: expiryInput.value || null,
         lot_code: lotInput.value.trim() || null,
       });
-
       itemsRoot.innerHTML = items
         .map(
-          (item) => `
-          <div
-            style="
-              padding:8px 0;
-              border-bottom:1px solid #edf1ed;
-            "
-          >
-            ${esc(item.product_name)}:
-            <strong>${item.quantity}</strong>
-            ×
-            <strong>${money(item.unit_cost)}</strong>
-
-            ${item.lot_code ? ` · Lote ${esc(item.lot_code)}` : ""}
-
-            ${item.expiry_date ? ` · Validade ${dateBR(item.expiry_date)}` : ""}
-          </div>
-        `,
+          (item, index) =>
+            `<div class="ops-item"><div>${esc(item.product_name)}<div class="ops-muted">${item.quantity} × ${money(item.unit_cost)}${item.lot_code ? ` · Lote ${esc(item.lot_code)}` : ""}${item.expiry_date ? ` · Validade ${dateBR(item.expiry_date)}` : ""}</div></div><button type="button" class="ops-btn danger" data-remove-purchase-item="${index}"><i class="fa-solid fa-trash"></i></button></div>`,
         )
         .join("");
-
+      itemsRoot
+        .querySelectorAll("[data-remove-purchase-item]")
+        .forEach((button) =>
+          button.addEventListener("click", () => {
+            items.splice(Number(button.dataset.removePurchaseItem), 1);
+            itemsRoot.innerHTML = items
+              .map(
+                (item, index) =>
+                  `<div class="ops-item"><div>${esc(item.product_name)}<div class="ops-muted">${item.quantity} × ${money(item.unit_cost)}${item.lot_code ? ` · Lote ${esc(item.lot_code)}` : ""}${item.expiry_date ? ` · Validade ${dateBR(item.expiry_date)}` : ""}</div></div><button type="button" class="ops-btn danger" data-remove-purchase-item="${index}"><i class="fa-solid fa-trash"></i></button></div>`,
+              )
+              .join("");
+          }),
+        );
       costInput.value = "";
       lotInput.value = "";
       expiryInput.value = "";
-
       notify("Item adicionado ao pedido.");
     });
-
-    const purchaseForm = view.querySelector("#ops-purchase-form");
-
     purchaseForm.addEventListener("submit", async (event) => {
       event.preventDefault();
-
       try {
-        const form = new FormData(event.currentTarget);
-
-        const supplierId = String(form.get("supplier_id") || "").trim();
-
+        const form = new FormData(event.currentTarget),
+          supplierId = String(form.get("supplier_id") || "").trim();
         if (!supplierId) {
           notify("Selecione um fornecedor.");
           return;
         }
-
         if (!items.length) {
           notify("Adicione ao menos um item ao pedido.");
           return;
         }
-
         const invalidItem = items.find(
           (item) =>
             !item.product_id ||
@@ -1326,21 +222,20 @@ export function mountOperationsAdmin({ content, notify = () => {} }) {
             !Number.isFinite(item.unit_cost) ||
             item.unit_cost <= 0,
         );
-
         if (invalidItem) {
           notify("Existe um item com quantidade ou custo inválido.");
           return;
         }
-
         const { data: userData, error: userError } =
           await supabase.auth.getUser();
-
-        if (userError) {
-          throw userError;
-        }
-
+        if (userError) throw userError;
         const createdBy = userData?.user?.id || null;
-
+        const subtotal = items.reduce(
+          (total, item) =>
+            total +
+            (Number(item.quantity) || 0) * (Number(item.unit_cost) || 0),
+          0,
+        );
         const { data: purchaseOrder, error: purchaseOrderError } =
           await supabase
             .from("purchase_orders")
@@ -1349,20 +244,18 @@ export function mountOperationsAdmin({ content, notify = () => {} }) {
               expected_at: form.get("expected_at") || null,
               notes: String(form.get("notes") || "").trim() || null,
               created_by: createdBy,
+              subtotal: subtotal,
+              status: "draft",
             })
             .select("id")
             .single();
-
         if (purchaseOrderError) {
           console.error("Erro ao criar pedido de compra:", purchaseOrderError);
-
           notify(
             `Não foi possível salvar o pedido: ${purchaseOrderError.message}`,
           );
-
           return;
         }
-
         const purchaseItems = items.map((item) => ({
           purchase_order_id: purchaseOrder.id,
           product_id: item.product_id,
@@ -1372,1097 +265,208 @@ export function mountOperationsAdmin({ content, notify = () => {} }) {
           expiry_date: item.expiry_date || null,
           lot_code: item.lot_code || null,
         }));
-
         const { error: itemError } = await supabase
           .from("purchase_order_items")
           .insert(purchaseItems);
-
         if (itemError) {
           console.error("Erro ao salvar itens da compra:", itemError);
-
           await supabase
             .from("purchase_orders")
             .delete()
             .eq("id", purchaseOrder.id);
-
           notify(`Não foi possível salvar os itens: ${itemError.message}`);
-
           return;
         }
-
         notify("Pedido de compra salvo com sucesso.");
-
         await renderPurchases();
       } catch (error) {
         console.error("Erro inesperado ao salvar compra:", error);
-
         notify(error?.message || "Não foi possível salvar o pedido de compra.");
       }
     });
-
-    view.querySelectorAll("[data-receive-purchase]").forEach((button) => {
+    view.querySelectorAll("[data-receive-purchase]").forEach((button) =>
       button.addEventListener("click", async () => {
         if (
           !confirm(
             "Confirmar recebimento integral? O estoque será atualizado e os lotes serão registrados.",
           )
-        ) {
+        )
           return;
-        }
-
         button.disabled = true;
-
         try {
           const { data, error } = await supabase.rpc("receive_purchase_order", {
             p_purchase_order_id: button.dataset.receivePurchase,
           });
-
-          if (error) {
-            throw error;
-          }
-
-          if (!data?.success) {
+          if (error) throw error;
+          if (!data?.success)
             throw new Error("O banco não confirmou o recebimento.");
-          }
-
           notify("Compra recebida e estoque atualizado.");
-
           await renderPurchases();
         } catch (error) {
           console.error(error);
-
           notify(`Não foi possível receber a compra: ${error.message}`);
-
           button.disabled = false;
         }
-      });
-    });
+      }),
+    );
   }
-
   async function renderLots() {
-    const { data, error } = await supabase
+    const { data: lots, error } = await supabase
       .from("inventory_lots")
-      .select(
-        `
-        id,
-        lot_code,
-        quantity_received,
-        quantity_remaining,
-        expiry_date,
-        received_at,
-        products(name,sku)
-      `,
-      )
-      .order("expiry_date", {
-        ascending: true,
-        nullsFirst: false,
-      })
-      .limit(500);
-
-    if (error) {
-      throw error;
-    }
-
-    const today = new Date();
-
-    today.setHours(0, 0, 0, 0);
-
-    const active = (data || []).filter(
-      (lot) => Number(lot.quantity_remaining) > 0,
+      .select("id,lot_code,expiry_date,quantity,unit_cost,products(name)")
+      .order("expiry_date", { ascending: true })
+      .limit(200);
+    if (error) throw error;
+    view.innerHTML = `${tabsHTML()}<div class="ops-panel"><h3>Lotes e validade</h3><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>PRODUTO</th><th>LOTE</th><th>VALIDADE</th><th>QUANTIDADE</th><th>CUSTO</th></tr></thead><tbody>${(lots || []).map((lot) => `<tr><td>${esc(lot.products?.name || "Produto")}</td><td>${esc(lot.lot_code || "—")}</td><td>${dateBR(lot.expiry_date)}</td><td>${Number(lot.quantity || 0)}</td><td>${money(lot.unit_cost)}</td></tr>`).join("") || `<tr><td colspan="5"><div class="ops-empty">Nenhum lote cadastrado.</div></td></tr>`}</tbody></table></div></div>`;
+    view.querySelectorAll("[data-ops-tab]").forEach((button) =>
+      button.addEventListener("click", async () => {
+        currentTab = button.dataset.opsTab;
+        await render();
+      }),
     );
-
-    const expired = active.filter(
-      (lot) =>
-        lot.expiry_date && new Date(`${lot.expiry_date}T00:00:00`) < today,
-    );
-
-    const soon = active.filter((lot) => {
-      if (!lot.expiry_date) {
-        return false;
-      }
-
-      const date = new Date(`${lot.expiry_date}T00:00:00`);
-
-      return date - today < 30 * 864e5 && date >= today;
-    });
-
-    view.innerHTML = `
-      <div class="ops-grid">
-
-        <div class="ops-stat">
-          <span>Lotes com saldo</span>
-          <strong>${active.length}</strong>
-        </div>
-
-        <div class="ops-stat">
-          <span>Vencidos</span>
-          <strong>${expired.length}</strong>
-        </div>
-
-        <div class="ops-stat">
-          <span>Vencem em até 30 dias</span>
-          <strong>${soon.length}</strong>
-        </div>
-
-      </div>
-
-      ${
-        expired.length
-          ? `
-            <div class="ops-alert">
-              Atenção: existem lotes vencidos com saldo.
-              Faça a conferência física e registre a baixa apropriada no estoque.
-            </div>
-          `
-          : ""
-      }
-
-      <div class="ops-panel">
-
-        <h3>Rastreabilidade por lote</h3>
-
-        <div class="ops-table-wrap">
-
-          <table class="ops-table">
-
-            <thead>
-              <tr>
-                <th>PRODUTO</th>
-                <th>LOTE</th>
-                <th>RECEBIDO</th>
-                <th>SALDO DO LOTE</th>
-                <th>VALIDADE</th>
-                <th>SITUAÇÃO</th>
-              </tr>
-            </thead>
-
-            <tbody>
-
-              ${
-                active
-                  .map((lot) => {
-                    const date = lot.expiry_date
-                      ? new Date(`${lot.expiry_date}T00:00:00`)
-                      : null;
-
-                    const state =
-                      date && date < today
-                        ? "Vencido"
-                        : date && date - today < 30 * 864e5
-                          ? "Próximo do vencimento"
-                          : "Regular";
-
-                    return `
-                      <tr>
-
-                        <td>
-                          ${esc(lot.products?.name || "—")}
-                        </td>
-
-                        <td>
-                          ${esc(lot.lot_code || "—")}
-                        </td>
-
-                        <td>
-                          ${lot.quantity_received}
-                        </td>
-
-                        <td>
-                          ${lot.quantity_remaining}
-                        </td>
-
-                        <td>
-                          ${dateBR(lot.expiry_date)}
-                        </td>
-
-                        <td>
-                          ${state}
-                        </td>
-
-                      </tr>
-                    `;
-                  })
-                  .join("") ||
-                `
-                  <tr>
-                    <td colspan="6">
-                      Nenhum lote registrado.
-                      Lotes são criados automaticamente no recebimento de compras.
-                    </td>
-                  </tr>
-                `
-              }
-
-            </tbody>
-
-          </table>
-
-        </div>
-
-      </div>
-    `;
   }
-
   async function renderKanban() {
-    const { data, error } = await supabase
+    const { data: orders, error } = await supabase
       .from("orders")
-      .select(
-        `
-        id,
-        order_number,
-        status,
-        total,
-        customer_name,
-        customer_phone,
-        fulfillment,
-        created_at
-      `,
-      )
-      .is("archived_at", null)
-      .in("status", statuses)
-      .order("created_at", {
-        ascending: true,
-      })
-      .limit(150);
-
-    if (error) {
-      throw error;
-    }
-
-    const groups = [
-      ["pending", "confirmed"],
-      ["preparing", "ready"],
-      ["out_for_delivery", "completed"],
-    ];
-
-    const titles = [
-      "Entrada e confirmação",
-      "Separação e pronto",
-      "Entrega e conclusão",
-    ];
-
-    view.innerHTML = `
-      <div class="ops-panel">
-
-        <div class="ops-head">
-
-          <div>
-            <h3>Quadro de separação</h3>
-
-            <p class="ops-muted">
-              Atualizações em tempo real enquanto esta tela estiver aberta.
-            </p>
-          </div>
-
-          <span class="ops-muted">
-            ${(data || []).length} pedidos ativos
-          </span>
-
-        </div>
-
-        <div class="ops-kanban">
-
-          ${groups
-            .map(
-              (group, index) => `
-                <section class="ops-lane">
-
-                  <h3>${titles[index]}</h3>
-
-                  ${
-                    (data || [])
-                      .filter((order) => group.includes(order.status))
-                      .map(
-                        (order) => `
-                        <article class="ops-order">
-
-                          <strong>
-                            #${order.order_number}
-                            ·
-                            ${money(order.total)}
-                          </strong>
-
-                          <span>
-                            ${esc(order.customer_name)}
-                          </span>
-
-                          <small class="ops-muted">
-                            ${
-                              order.fulfillment === "delivery"
-                                ? "Entrega"
-                                : "Retirada"
-                            }
-                            ·
-                            ${new Date(order.created_at).toLocaleString(
-                              "pt-BR",
-                            )}
-                          </small>
-
-                          <select
-                            data-kanban-status="${order.id}"
-                            aria-label="Status do pedido #${order.order_number}"
-                          >
-
-                            ${statuses
-                              .map(
-                                (status) => `
-                                  <option
-                                    value="${status}"
-                                    ${order.status === status ? "selected" : ""}
-                                  >
-                                    ${statusLabels[status]}
-                                  </option>
-                                `,
-                              )
-                              .join("")}
-
-                          </select>
-
-                          <a
-                            class="ops-muted"
-                            target="_blank"
-                            rel="noopener"
-                            href="https://wa.me/${String(
-                              order.customer_phone || "",
-                            ).replace(/\D/g, "")}?text=${encodeURIComponent(
-                              `Olá ${order.customer_name}, sobre seu pedido #${order.order_number} no Mercado Jesi.`,
-                            )}"
-                          >
-                            Abrir WhatsApp
-                          </a>
-
-                        </article>
-                      `,
-                      )
-                      .join("") ||
-                    `
-                      <p class="ops-muted">
-                        Nenhum pedido nesta etapa.
-                      </p>
-                    `
-                  }
-
-                </section>
-              `,
-            )
-            .join("")}
-
-        </div>
-
-      </div>
-    `;
-
-    view.querySelectorAll("[data-kanban-status]").forEach((select) => {
-      select.addEventListener("change", async () => {
-        const { error: updateError } = await supabase
-          .from("orders")
-          .update({
-            status: select.value,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", select.dataset.kanbanStatus);
-
-        if (updateError) {
-          throw updateError;
-        }
-
-        notify("Status do pedido atualizado.");
-
-        await renderKanban();
-      });
-    });
-  }
-
-  async function renderBarcode() {
-    view.innerHTML = `
-      <div class="ops-panel barcode-hero">
-
-        <div class="barcode-top">
-
-          <div class="barcode-title">
-
-            <span class="barcode-icon">
-              <i class="fa-solid fa-barcode"></i>
-            </span>
-
-            <div>
-
-              <span class="eyebrow">
-                LEITURA INTELIGENTE
-              </span>
-
-              <h3>
-                Localizar produto por código de barras
-              </h3>
-
-              <p>
-                Consulte rapidamente preço, SKU e informações do produto
-                usando leitor USB, digitação ou câmera.
-              </p>
-
-            </div>
-
-          </div>
-
-          <span class="barcode-live">
-            <i class="fa-solid fa-circle"></i>
-            Leitor pronto
-          </span>
-
-        </div>
-
-        <div class="barcode-workspace">
-
-          <div class="barcode-search-card">
-
-            <label
-              class="barcode-label"
-              for="ops-barcode-input"
-            >
-              Código do produto
-            </label>
-
-            <div class="barcode-input-row">
-
-              <div class="barcode-input-wrap">
-
-                <i class="fa-solid fa-barcode"></i>
-
-                <input
-                  class="barcode-input"
-                  id="ops-barcode-input"
-                  placeholder="Bipe ou digite o código de barras"
-                  inputmode="numeric"
-                  autocomplete="off"
-                >
-
-              </div>
-
-              <button
-                class="barcode-search-btn"
-                id="ops-barcode-search"
-              >
-                <i class="fa-solid fa-magnifying-glass"></i>
-                Pesquisar
-              </button>
-
-            </div>
-
-            <div class="barcode-actions">
-
-              <button
-                class="barcode-action"
-                id="ops-camera-start"
-              >
-                <i class="fa-solid fa-camera"></i>
-                Abrir câmera
-              </button>
-
-              <button
-                class="barcode-action"
-                id="ops-camera-stop"
-                disabled
-              >
-                <i class="fa-solid fa-stop"></i>
-                Parar câmera
-              </button>
-
-            </div>
-
-            <p class="barcode-hint">
-
-              <i class="fa-solid fa-circle-info"></i>
-
-              <span>
-                Aponte o leitor USB para o campo ou use a câmera.
-                A leitura pela câmera depende do suporte do navegador ao
-                <b>BarcodeDetector</b>.
-              </span>
-
-            </p>
-
-          </div>
-
-          <div class="barcode-camera-card">
-
-            <div class="barcode-camera-head">
-
-              <strong>
-                <i class="fa-solid fa-camera-retro"></i>
-                Scanner visual
-              </strong>
-
-              <span>
-                EAN · UPC · CODE 128
-              </span>
-
-            </div>
-
-            <div class="barcode-camera-frame">
-
-              <video
-                class="ops-camera"
-                id="ops-camera"
-                playsinline
-                hidden
-              ></video>
-
-              <span class="scan-line"></span>
-
-              <div
-                class="barcode-camera-empty"
-                id="ops-camera-empty"
-              >
-                <i class="fa-solid fa-expand"></i>
-                Abra a câmera para iniciar a leitura
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-        <div
-          id="ops-barcode-result"
-          class="barcode-result"
-        ></div>
-
-      </div>
-    `;
-
-    const input = view.querySelector("#ops-barcode-input");
-
-    const result = view.querySelector("#ops-barcode-result");
-
-    const video = view.querySelector("#ops-camera");
-
-    let stream = null;
-    let raf = 0;
-    let detector = null;
-
-    async function lookup() {
-      const code = input.value.trim();
-
-      if (!code) {
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("products")
-        .select("id,name,sku,barcode,price,cost_price,unit")
-        .eq("barcode", code)
-        .maybeSingle();
-
-      if (error) {
-        throw error;
-      }
-
-      if (data) {
-        result.innerHTML = `
-          <div class="ops-stat">
-
-            <strong>
-              ${esc(data.name)}
-            </strong>
-
-            <span>
-              Código ${esc(data.barcode || "—")}
-              · SKU ${esc(data.sku || "—")}
-              · ${esc(data.unit || "—")}
-            </span>
-
-            <strong>
-              ${money(data.price)}
-            </strong>
-
-          </div>
-        `;
-      } else {
-        result.innerHTML = `
-          <div class="ops-alert">
-            Nenhum produto encontrado com este código.
-          </div>
-        `;
-      }
-    }
-
-    view.querySelector("#ops-barcode-search").addEventListener("click", () => {
-      lookup().catch((error) => {
-        console.error(error);
-        notify(`Erro ao pesquisar produto: ${error.message}`);
-      });
-    });
-
-    input.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-
-        lookup().catch((error) => {
-          console.error(error);
-          notify(`Erro ao pesquisar produto: ${error.message}`);
-        });
-      }
-    });
-
-    const stop = () => {
-      cancelAnimationFrame(raf);
-
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-
-      stream = null;
-
-      video.pause();
-      video.srcObject = null;
-      video.hidden = true;
-
-      view.querySelector("#ops-camera-empty").hidden = false;
-
-      view.querySelector("#ops-camera-stop").disabled = true;
-
-      activeCameraStop = null;
+      .select("id,status,total,created_at,customer_name")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) throw error;
+    const groups = {
+      pending: [],
+      paid: [],
+      processing: [],
+      ready: [],
+      shipped: [],
+      delivered: [],
+      cancelled: [],
     };
-
-    view
-      .querySelector("#ops-camera-start")
-      .addEventListener("click", async () => {
-        if (!("BarcodeDetector" in window)) {
-          notify(
-            "Este navegador não oferece leitura de código pela câmera. Use leitor USB ou digite o código.",
-          );
-          return;
-        }
-
-        try {
-          detector = new BarcodeDetector({
-            formats: [
-              "ean_13",
-              "ean_8",
-              "upc_a",
-              "upc_e",
-              "code_128",
-              "code_39",
-              "itf",
-            ],
-          });
-
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: {
-                ideal: "environment",
-              },
-            },
-            audio: false,
-          });
-
-          video.srcObject = stream;
-          video.hidden = false;
-
-          view.querySelector("#ops-camera-empty").hidden = true;
-
-          await video.play();
-
-          view.querySelector("#ops-camera-stop").disabled = false;
-
-          const scan = async () => {
-            if (!stream) {
-              return;
-            }
-
-            try {
-              const codes = await detector.detect(video);
-
-              if (codes.length) {
-                input.value = codes[0].rawValue;
-
-                await lookup();
-
-                stop();
-
-                return;
-              }
-            } catch (error) {
-              console.debug("Scanner:", error);
-            }
-
-            raf = requestAnimationFrame(scan);
-          };
-
-          scan();
-        } catch (error) {
-          console.error(error);
-
-          notify(`Não foi possível abrir a câmera: ${error.message}`);
-        }
-      });
-
-    view.querySelector("#ops-camera-stop").addEventListener("click", stop);
-
-    activeCameraStop = stop;
-  }
-
-  async function renderLabels() {
-    view.innerHTML = `
-      <div class="ops-panel">
-
-        <h3>
-          Imprimir etiquetas de preço
-        </h3>
-
-        <div class="ops-grid">
-
-          <label class="ops-field">
-
-            Produto
-
-            <select id="ops-label-product">
-              <option value="">
-                Selecione o produto
-              </option>
-
-              ${productOptions()}
-            </select>
-
-          </label>
-
-          <label class="ops-field">
-
-            Quantidade de etiquetas
-
-            <input
-              id="ops-label-qty"
-              type="number"
-              min="1"
-              max="100"
-              value="1"
-            >
-
-          </label>
-
-          <div
-            class="ops-field"
-            style="align-content:end"
-          >
-
-            <button
-              class="ops-btn primary"
-              id="ops-label-add"
-            >
-              Adicionar à folha
-            </button>
-
-          </div>
-
-        </div>
-
-        <div
-          class="ops-actions"
-          style="margin:14px 0"
-        >
-
-          <button
-            class="ops-btn"
-            id="ops-label-print"
-          >
-            Imprimir etiquetas
-          </button>
-
-          <button
-            class="ops-btn"
-            id="ops-label-clear"
-          >
-            Limpar
-          </button>
-
-        </div>
-
-        <div
-          class="ops-label-sheet"
-          id="ops-label-sheet"
-        ></div>
-
-        <p class="ops-muted">
-          Impressão via navegador. Ajuste escala e papel
-          na caixa de impressão conforme sua etiqueta física.
-        </p>
-
-      </div>
-    `;
-
-    const sheet = view.querySelector("#ops-label-sheet");
-
-    view.querySelector("#ops-label-add").addEventListener("click", () => {
-      const product = products.find(
-        (item) => item.id === view.querySelector("#ops-label-product").value,
-      );
-
-      const qty = Math.min(
-        100,
-        Math.max(1, Number(view.querySelector("#ops-label-qty").value) || 1),
-      );
-
-      if (!product) {
-        notify("Selecione um produto.");
-        return;
-      }
-
-      for (let i = 0; i < qty; i++) {
-        const label = document.createElement("div");
-
-        label.className = "ops-label";
-
-        const name = document.createElement("strong");
-
-        name.textContent = product.name;
-
-        const price = document.createElement("b");
-
-        price.textContent = money(product.price);
-
-        const code = document.createElement("div");
-
-        const barcode = ean13Svg(String(product.barcode || ""));
-
-        if (barcode) {
-          code.innerHTML = barcode;
-        } else {
-          const text = document.createElement("small");
-
-          text.textContent = product.barcode || product.sku || "";
-
-          code.append(text);
-        }
-
-        label.append(name, price, code);
-
-        sheet.append(label);
-      }
-
-      notify(`${qty} etiqueta(s) adicionada(s).`);
+    (orders || []).forEach((order) => {
+      (groups[order.status] || groups.pending).push(order);
     });
-
-    view
-      .querySelector("#ops-label-print")
-      .addEventListener("click", () => window.print());
-
-    view
-      .querySelector("#ops-label-clear")
-      .addEventListener("click", () => sheet.replaceChildren());
+    const columns = [
+      ["pending", "Pendentes"],
+      ["paid", "Pagos"],
+      ["processing", "Em processamento"],
+      ["ready", "Prontos"],
+      ["shipped", "Enviados"],
+      ["delivered", "Entregues"],
+      ["cancelled", "Cancelados"],
+    ];
+    view.innerHTML = `${tabsHTML()}<div class="ops-panel"><h3>Kanban de pedidos</h3><div class="ops-kanban">${columns.map(([status, label]) => `<div class="ops-column"><h4>${label} <span class="ops-badge">${groups[status].length}</span></h4>${groups[status].map((order) => `<div class="ops-card"><strong>#${esc(order.id).slice(0, 8)}</strong><div class="ops-muted">${esc(order.customer_name || "Cliente")}</div><div style="margin-top:7px;font-weight:800">${money(order.total)}</div></div>`).join("") || `<div class="ops-muted">Nenhum pedido.</div>`}</div>`).join("")}</div></div>`;
+    view.querySelectorAll("[data-ops-tab]").forEach((button) =>
+      button.addEventListener("click", async () => {
+        currentTab = button.dataset.opsTab;
+        await render();
+      }),
+    );
   }
-
-  async function renderLoyalty() {
-    const { data, error } = await supabase
-      .from("loyalty_accounts")
-      .select(
-        `
-        id,
-        points_balance,
-        lifetime_points,
-        customers(
-          full_name,
-          phone,
-          email
-        )
-      `,
-      )
-      .order("points_balance", {
-        ascending: false,
-      })
-      .limit(500);
-
-    if (error) {
-      throw error;
-    }
-
-    view.innerHTML = `
-      <div class="ops-panel">
-
-        <h3>
-          Programa de fidelidade
-        </h3>
-
-        <p class="ops-muted">
-          Regra inicial: 1 ponto a cada R$ 10 em pedidos concluídos.
-          O banco concede pontos uma única vez por pedido.
-        </p>
-
-        <div class="ops-table-wrap">
-
-          <table class="ops-table">
-
-            <thead>
-              <tr>
-                <th>CLIENTE</th>
-                <th>TELEFONE</th>
-                <th>PONTOS DISPONÍVEIS</th>
-                <th>PONTOS ACUMULADOS</th>
-              </tr>
-            </thead>
-
-            <tbody>
-
-              ${
-                (data || [])
-                  .map(
-                    (account) => `
-                    <tr>
-
-                      <td>
-                        ${esc(account.customers?.full_name || "Cliente")}
-                      </td>
-
-                      <td>
-                        ${esc(account.customers?.phone || "—")}
-                      </td>
-
-                      <td>
-                        <strong>
-                          ${account.points_balance}
-                        </strong>
-                      </td>
-
-                      <td>
-                        ${account.lifetime_points}
-                      </td>
-
-                    </tr>
-                  `,
-                  )
-                  .join("") ||
-                `
-                  <tr>
-                    <td colspan="4">
-                      Ainda não há clientes com pontos.
-                      Os pontos são creditados automaticamente após pedidos
-                      concluídos vinculados a um cadastro de cliente.
-                    </td>
-                  </tr>
-                `
-              }
-
-            </tbody>
-
-          </table>
-
-        </div>
-
-      </div>
-    `;
+  async function renderBarcode() {
+    view.innerHTML = `${tabsHTML()}<div class="ops-panel"><h3>Leitor de código de barras</h3><p class="ops-muted">Use a câmera do dispositivo para leitura de códigos.</p><div class="ops-camera" id="ops-camera"><div class="ops-camera-empty"><i class="fa-solid fa-camera" style="font-size:32px"></i><div style="margin-top:10px">A câmera ficará disponível aqui.</div></div></div><div class="ops-actions" style="margin-top:14px"><button class="ops-btn primary" id="ops-start-camera"><i class="fa-solid fa-camera"></i>Iniciar câmera</button><button class="ops-btn" id="ops-stop-camera"><i class="fa-solid fa-stop"></i>Parar câmera</button></div></div>`;
+    view.querySelectorAll("[data-ops-tab]").forEach((button) =>
+      button.addEventListener("click", async () => {
+        currentTab = button.dataset.opsTab;
+        stopCamera();
+        await render();
+      }),
+    );
+    view
+      .querySelector("#ops-start-camera")
+      ?.addEventListener("click", startCamera);
+    view
+      .querySelector("#ops-stop-camera")
+      ?.addEventListener("click", stopCamera);
   }
-
-  async function render() {
-    if (!supabase) {
-      view.innerHTML = `
-        <div class="ops-alert">
-          Configure a conexão com o Supabase para usar este módulo.
-        </div>
-      `;
-
+  async function startCamera() {
+    const camera = view.querySelector("#ops-camera");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      notify("Seu navegador não oferece acesso à câmera.");
       return;
     }
-
-    await loadBase();
-
-    if (active === "purchases") {
-      return renderPurchases();
-    }
-
-    if (active === "lots") {
-      return renderLots();
-    }
-
-    if (active === "kanban") {
-      return renderKanban();
-    }
-
-    if (active === "barcode") {
-      return renderBarcode();
-    }
-
-    if (active === "labels") {
-      return renderLabels();
-    }
-
-    if (active === "loyalty") {
-      return renderLoyalty();
+    try {
+      stopCamera();
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+      });
+      const video = document.createElement("video");
+      video.autoplay = true;
+      video.muted = true;
+      video.playsInline = true;
+      video.style.width = "100%";
+      video.style.maxHeight = "420px";
+      video.style.objectFit = "cover";
+      camera.innerHTML = "";
+      camera.appendChild(video);
+      video.srcObject = stream;
+      activeCameraStop = () => {
+        stream.getTracks().forEach((track) => track.stop());
+        if (video.srcObject) video.srcObject = null;
+      };
+    } catch (error) {
+      console.error(error);
+      notify("Não foi possível acessar a câmera.");
     }
   }
-
-  content.querySelectorAll("[data-tab]").forEach((button) => {
-    button.addEventListener("click", () => {
-      if (realtime) {
-        supabase.removeChannel(realtime);
-
-        realtime = null;
-      }
-
-      activeCameraStop?.();
-
+  function stopCamera() {
+    if (activeCameraStop) {
+      activeCameraStop();
       activeCameraStop = null;
-
-      tab(button.dataset.tab);
-
-      if (button.dataset.tab === "kanban") {
-        realtime = supabase
-          .channel("ops-orders-live")
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "orders",
-            },
-            () => {
-              if (active === "kanban") {
-                renderKanban().catch(console.error);
-              }
-            },
-          )
-          .subscribe();
-      }
-    });
-  });
-
-  content.querySelector("#ops-refresh").addEventListener("click", () => {
-    render().catch((error) => {
-      console.error(error);
-
-      notify(error.message || "Não foi possível atualizar.");
-    });
-  });
-
-  const root = content.querySelector(".ops-admin");
-
-  const cleanupObserver = new MutationObserver(() => {
-    if (!content.contains(root)) {
-      if (realtime) {
-        supabase.removeChannel(realtime);
-
-        realtime = null;
-      }
-
-      activeCameraStop?.();
-
-      activeCameraStop = null;
-
-      cleanupObserver.disconnect();
     }
-  });
-
-  cleanupObserver.observe(content, {
-    childList: true,
-  });
-
-  render().catch((error) => {
-    console.error("Erro ao carregar módulo operations:", error);
-
-    view.innerHTML = `
-      <div class="ops-alert">
-        Não foi possível carregar o módulo de operações:
-        ${esc(error.message || "Falha desconhecida")}
-      </div>
-    `;
-  });
+    const camera = view.querySelector("#ops-camera");
+    if (camera)
+      camera.innerHTML = `<div class="ops-camera-empty"><i class="fa-solid fa-camera" style="font-size:32px"></i><div style="margin-top:10px">A câmera está parada.</div></div>`;
+  }
+  async function renderLabels() {
+    const { data: products, error } = await supabase
+      .from("products")
+      .select("id,name,barcode,price")
+      .order("name")
+      .limit(200);
+    if (error) throw error;
+    view.innerHTML = `${tabsHTML()}<div class="ops-panel"><h3>Etiquetas de produtos</h3><div class="ops-labels">${(products || []).map((product) => `<div class="ops-label"><strong>${esc(product.name)}</strong><div class="ops-barcode">${esc(product.barcode || "SEM CÓDIGO")}</div><div style="text-align:center;font-weight:800">${money(product.price)}</div></div>`).join("") || `<div class="ops-empty">Nenhum produto cadastrado.</div>`}</div></div>`;
+    view.querySelectorAll("[data-ops-tab]").forEach((button) =>
+      button.addEventListener("click", async () => {
+        currentTab = button.dataset.opsTab;
+        await render();
+      }),
+    );
+  }
+  async function renderLoyalty() {
+    let settings = null;
+    const { data, error } = await supabase
+      .from("loyalty_settings")
+      .select("*")
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    settings = data;
+    view.innerHTML = `${tabsHTML()}<div class="ops-panel"><h3>Fidelidade</h3><div class="ops-grid"><div class="ops-stat"><span class="ops-muted">Pontos por R$ 1</span><strong>${Number(settings?.points_per_currency || 1)}</strong></div><div class="ops-stat"><span class="ops-muted">Valor de cada ponto</span><strong>${money(settings?.point_value || 0)}</strong></div><div class="ops-stat"><span class="ops-muted">Mínimo para resgate</span><strong>${Number(settings?.minimum_redeem_points || 0)} pontos</strong></div><div class="ops-stat"><span class="ops-muted">Status</span><strong>${settings?.enabled === false ? "Desativado" : "Ativo"}</strong></div></div></div>`;
+    view.querySelectorAll("[data-ops-tab]").forEach((button) =>
+      button.addEventListener("click", async () => {
+        currentTab = button.dataset.opsTab;
+        await render();
+      }),
+    );
+  }
+  async function render() {
+    try {
+      if (currentTab === "purchases") await renderPurchases();
+      else if (currentTab === "lots") await renderLots();
+      else if (currentTab === "kanban") await renderKanban();
+      else if (currentTab === "barcode") await renderBarcode();
+      else if (currentTab === "labels") await renderLabels();
+      else if (currentTab === "loyalty") await renderLoyalty();
+    } catch (error) {
+      console.error("Erro nas operações:", error);
+      view.innerHTML = `${tabsHTML()}<div class="ops-panel"><div class="ops-empty"><i class="fa-solid fa-triangle-exclamation"></i><br>Não foi possível carregar esta área.<br><small>${esc(error?.message || "Erro desconhecido")}</small></div></div>`;
+      view.querySelectorAll("[data-ops-tab]").forEach((button) =>
+        button.addEventListener("click", async () => {
+          currentTab = button.dataset.opsTab;
+          await render();
+        }),
+      );
+    }
+  }
+  render();
+  return () => stopCamera();
 }
