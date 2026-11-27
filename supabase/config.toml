@@ -9,3 +9,6 @@ verify_jwt = true
 
 [functions.create-staff-user]
 verify_jwt = true
+
+[functions.delete-order-safely]
+verify_jwt = true

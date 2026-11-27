@@ -38,6 +38,15 @@ const formatDate = (value) => {
   }).format(new Date(value));
 };
 
+// Pagamentos pendentes não são, por si só, histórico financeiro confirmado.
+// A Edge Function valida a cobrança online diretamente no Mercado Pago.
+function hasFinancialHistory(order) {
+  const payments = order.payments || [];
+  return (order.cash_transactions || []).length > 0 || payments.some((payment) =>
+    payment.status === "paid" || payment.status === "refunded" || Boolean(payment.paid_at)
+  );
+}
+
 function addStyles() {
   if (document.querySelector("#orders-admin-styles")) return;
 
@@ -308,7 +317,7 @@ function render() {
               Detalhes
             </button>
             ${selectedView === "active" ? (
-              ((order.payments || []).length || (order.cash_transactions || []).length)
+              hasFinancialHistory(order)
                 ? `<button type="button" class="orders-archive-btn"
                     data-order-archive="${escapeHTML(order.id)}"
                     aria-label="Arquivar pedido #${escapeHTML(order.order_number)}"
@@ -331,7 +340,7 @@ function render() {
                 <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
                 Restaurar
               </button>
-              ${((order.payments || []).length || (order.cash_transactions || []).length)
+              ${hasFinancialHistory(order)
                 ? `<span class="orders-financial-lock" title="Pedido protegido por histórico financeiro">
                     <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
                     Protegido
@@ -519,7 +528,7 @@ async function loadOrders() {
           unit_price,
           line_total
         ),
-        payments (method,status,payment_channel,provider),
+        payments (method,status,payment_channel,provider,provider_reference,paid_at),
         cash_transactions (id)
       `)
       .order("created_at", { ascending: false })
@@ -763,7 +772,7 @@ async function handleTableAction(event) {
 
     const confirmed = window.confirm(
       `Excluir permanentemente o pedido #${order.order_number}?\\n\\n` +
-      "Essa ação remove o pedido e seus itens do banco de dados e não pode ser desfeita."
+      "O servidor verificará a cobrança no Mercado Pago antes de excluir. Se houver pagamento ativo, confirmado ou qualquer dúvida, a exclusão será bloqueada."
     );
     if (!confirmed) return;
 
@@ -771,12 +780,14 @@ async function handleTableAction(event) {
     deleteButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Excluindo...';
 
     try {
-      const { data, error } = await supabase.rpc(
-        "delete_order_without_financial_history",
-        { p_order_id: order.id },
+      const { data, error } = await supabase.functions.invoke(
+        "delete-order-safely",
+        { body: { order_id: order.id } },
       );
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(await getEdgeFunctionErrorMessage(error, data));
+      }
       if (data?.success !== true) {
         throw new Error(data?.error || "O banco não confirmou a exclusão.");
       }
