@@ -3,6 +3,7 @@ import { supabase } from "./supabase.js";
 let orders = [];
 let content;
 let notify;
+const selectedOrderIds = new Set();
 
 const statuses = {
   pending: "Pendente",
@@ -21,13 +22,17 @@ const money = (value) =>
   }).format(Number(value || 0));
 
 const escapeHTML = (value = "") =>
-  String(value).replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
-  })[char]);
+  String(value).replace(
+    /[&<>"']/g,
+    (char) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[char],
+  );
 
 const formatDate = (value) => {
   if (!value) return "—";
@@ -40,8 +45,12 @@ const formatDate = (value) => {
 
 function hasFinancialHistory(order) {
   const payments = order.payments || [];
-  return (order.cash_transactions || []).length > 0 || payments.some((payment) =>
-    payment.paid_at || ["paid", "refunded"].includes(payment.status)
+  return (
+    (order.cash_transactions || []).length > 0 ||
+    payments.some(
+      (payment) =>
+        payment.paid_at || ["paid", "refunded"].includes(payment.status),
+    )
   );
 }
 
@@ -255,33 +264,54 @@ function addStyles() {
       .order-detail-grid { grid-template-columns:1fr; }
       .order-modal { padding:17px; }
     }
+
+        .orders-bulk-actions {
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px; flex-wrap:wrap; margin-bottom:16px;
+    }
+    .orders-bulk-info {
+      color:var(--muted,#778078); font-size:.84rem;
+    }
+    .orders-bulk-btn {
+      display:inline-flex; align-items:center; justify-content:center;
+      gap:8px; padding:10px 14px; border:1px solid #d8e4f4;
+      border-radius:9px; background:#f3f7fd; color:#2455a5;
+      font:inherit; font-size:.82rem; font-weight:800;
+      cursor:pointer; transition:background .18s ease;
+    }
+    .orders-bulk-btn:hover { background:#e8f0fc; }
+    .orders-bulk-btn:disabled {
+      opacity:.55; cursor:wait;
+    }
+    .orders-select-order {
+      width:16px; height:16px; cursor:pointer;
+      accent-color:#2455a5;
+    }
   `;
 
   document.head.appendChild(style);
 }
 
 function render() {
-  const query = (
-    content.querySelector("#orders-search")?.value || ""
-  ).trim().toLocaleLowerCase("pt-BR");
+  const query = (content.querySelector("#orders-search")?.value || "")
+    .trim()
+    .toLocaleLowerCase("pt-BR");
 
-  const selectedStatus =
-    content.querySelector("#orders-filter")?.value || "";
-  const selectedView =
-    content.querySelector("#orders-view")?.value || "active";
+  const selectedStatus = content.querySelector("#orders-filter")?.value || "";
+  const selectedView = content.querySelector("#orders-view")?.value || "active";
 
   const filtered = orders.filter((order) => {
-    const matchesView = selectedView === "archived"
-      ? Boolean(order.archived_at)
-      : !order.archived_at;
+    const matchesView =
+      selectedView === "archived"
+        ? Boolean(order.archived_at)
+        : !order.archived_at;
 
     const matchesQuery =
       `${order.order_number} ${order.customer_name} ${order.customer_phone}`
         .toLocaleLowerCase("pt-BR")
         .includes(query);
 
-    const matchesStatus =
-      !selectedStatus || order.status === selectedStatus;
+    const matchesStatus = !selectedStatus || order.status === selectedStatus;
 
     return matchesView && matchesQuery && matchesStatus;
   });
@@ -291,13 +321,31 @@ function render() {
 
   if (!tbody) return;
 
-  count.textContent =
-    `${filtered.length} pedido(s) encontrado(s)`;
+  count.textContent = `${filtered.length} pedido(s) encontrado(s)`;
+
+  updateBulkControls(filtered);
 
   tbody.innerHTML = filtered.length
-    ? filtered.map((order) => `
-        <tr>
-          <td><strong>#${escapeHTML(order.order_number)}</strong></td>
+    ? filtered
+        .map(
+          (order) => `
+                <tr>
+          <td>
+            ${
+              selectedView === "active" && hasFinancialHistory(order)
+                ? `
+              <input
+                type="checkbox"
+                class="orders-select-order"
+                data-select-order="${escapeHTML(order.id)}"
+                aria-label="Selecionar pedido #${escapeHTML(order.order_number)}"
+                ${selectedOrderIds.has(order.id) ? "checked" : ""}
+              >
+            `
+                : ""
+            }
+            <strong>#${escapeHTML(order.order_number)}</strong>
+          </td>
           <td>
             <strong>${escapeHTML(order.customer_name)}</strong>
             <span class="orders-muted">${escapeHTML(order.customer_phone)}</span>
@@ -314,23 +362,24 @@ function render() {
             <button type="button" data-order-details="${escapeHTML(order.id)}">
               Detalhes
             </button>
-            ${selectedView === "active" ? (
-              hasFinancialHistory(order)
-                ? `<button type="button" class="orders-archive-btn"
+            ${
+              selectedView === "active"
+                ? hasFinancialHistory(order)
+                  ? `<button type="button" class="orders-archive-btn"
                     data-order-archive="${escapeHTML(order.id)}"
                     aria-label="Arquivar pedido #${escapeHTML(order.order_number)}"
                     title="Arquivar e preservar o histórico financeiro">
                     <i class="fa-solid fa-box-archive" aria-hidden="true"></i>
                     Arquivar
                   </button>`
-                : `<button type="button" class="orders-delete-btn"
+                  : `<button type="button" class="orders-delete-btn"
                     data-order-delete="${escapeHTML(order.id)}"
                     aria-label="Excluir pedido #${escapeHTML(order.order_number)}"
                     title="Excluir pedido permanentemente">
                     <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
                     Excluir
                   </button>`
-            ) : `
+                : `
               <button type="button" class="orders-restore-btn"
                 data-order-restore="${escapeHTML(order.id)}"
                 aria-label="Restaurar pedido #${escapeHTML(order.order_number)}"
@@ -338,28 +387,35 @@ function render() {
                 <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
                 Restaurar
               </button>
-              ${hasFinancialHistory(order)
-                ? `<span class="orders-financial-lock" title="Pedido protegido por histórico financeiro">
+              ${
+                hasFinancialHistory(order)
+                  ? `<span class="orders-financial-lock" title="Pedido protegido por histórico financeiro">
                     <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
                     Protegido
                   </span>`
-                : `<button type="button" class="orders-delete-btn"
+                  : `<button type="button" class="orders-delete-btn"
                     data-order-delete="${escapeHTML(order.id)}"
                     aria-label="Excluir definitivamente pedido #${escapeHTML(order.order_number)}"
                     title="Excluir definitivamente este pedido">
                     <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
                     Excluir
-                  </button>`}
-            `}
+                  </button>`
+              }
+            `
+            }
           </td>
         </tr>
-      `).join("")
+      `,
+        )
+        .join("")
     : `
         <tr>
           <td colspan="7" class="orders-empty">
-            ${query || selectedStatus
-              ? "Nenhum pedido corresponde aos filtros."
-              : "Nenhum pedido registrado ainda."}
+            ${
+              query || selectedStatus
+                ? "Nenhum pedido corresponde aos filtros."
+                : "Nenhum pedido registrado ainda."
+            }
           </td>
         </tr>
       `;
@@ -411,10 +467,29 @@ function renderPage() {
           </select>
           <select id="orders-filter">
             <option value="">Todos os status</option>
-            ${Object.entries(statuses).map(([value, label]) => `
+            ${Object.entries(statuses)
+              .map(
+                ([value, label]) => `
               <option value="${value}">${label}</option>
-            `).join("")}
+            `,
+              )
+              .join("")}
           </select>
+                </div>
+
+        <div class="orders-bulk-actions" id="orders-bulk-actions">
+          <span class="orders-bulk-info" id="orders-bulk-info">
+            Selecione os pedidos confirmados que deseja arquivar.
+          </span>
+          <button
+            type="button"
+            class="orders-bulk-btn"
+            id="orders-bulk-archive"
+            disabled
+          >
+            <i class="fa-solid fa-box-archive" aria-hidden="true"></i>
+            Arquivar selecionados
+          </button>
         </div>
 
         <div class="orders-count" id="orders-count">Carregando pedidos...</div>
@@ -423,7 +498,15 @@ function renderPage() {
           <table class="orders-table">
             <thead>
               <tr>
-                <th>PEDIDO</th>
+                <th>
+  <input
+    type="checkbox"
+    class="orders-select-order"
+    id="orders-select-all"
+    aria-label="Selecionar todos os pedidos elegíveis"
+  >
+  PEDIDO
+</th>
                 <th>CLIENTE</th>
                 <th>DATA</th>
                 <th>MODALIDADE</th>
@@ -445,26 +528,185 @@ function renderPage() {
     </div>
   `;
 
-  content.querySelector("#refresh-orders")
+  content
+    .querySelector("#refresh-orders")
     .addEventListener("click", loadOrders);
 
-  content.querySelector("#orders-search")
-    .addEventListener("input", render);
+  content.querySelector("#orders-search").addEventListener("input", render);
 
-  content.querySelector("#orders-filter")
-    .addEventListener("change", render);
+  content.querySelector("#orders-filter").addEventListener("change", render);
 
-  content.querySelector("#orders-view")
-    .addEventListener("change", render);
+  content.querySelector("#orders-view").addEventListener("change", render);
 
-  content.querySelector("#orders-table-body")
+  content
+    .querySelector("#orders-table-body")
     .addEventListener("click", handleTableAction);
 
-  content.querySelector("#order-modal-root")
+  content
+    .querySelector(".orders-table-wrap")
+    .addEventListener("change", handleSelectionChange);
+
+  content
+    .querySelector("#orders-bulk-archive")
+    .addEventListener("click", archiveSelectedOrders);
+
+  content
+    .querySelector("#order-modal-root")
     .addEventListener("click", handleModalClick);
 
-  content.querySelector("#order-modal-root")
+  content
+    .querySelector("#order-modal-root")
     .addEventListener("change", handleStatusChange);
+}
+
+function updateBulkControls(filtered = []) {
+  const container = content.querySelector("#orders-bulk-actions");
+  const button = content.querySelector("#orders-bulk-archive");
+  const info = content.querySelector("#orders-bulk-info");
+  const selectAll = content.querySelector("#orders-select-all");
+
+  if (!container || !button || !info) return;
+
+  const isActiveView =
+    content.querySelector("#orders-view")?.value === "active";
+
+  container.hidden = !isActiveView;
+
+  if (!isActiveView) return;
+
+  const eligible = filtered.filter(
+    (order) => !order.archived_at && hasFinancialHistory(order),
+  );
+
+  const selectedVisible = eligible.filter((order) =>
+    selectedOrderIds.has(order.id),
+  );
+
+  button.disabled = selectedOrderIds.size === 0;
+  info.textContent = `${selectedOrderIds.size} pedido(s) selecionado(s)`;
+
+  if (selectAll) {
+    selectAll.checked =
+      eligible.length > 0 &&
+      eligible.every((order) => selectedOrderIds.has(order.id));
+
+    selectAll.indeterminate =
+      selectedVisible.length > 0 && selectedVisible.length < eligible.length;
+  }
+}
+
+function handleSelectionChange(event) {
+  const target = event.target;
+
+  if (target.id === "orders-select-all") {
+    const visibleCheckboxes = [
+      ...content.querySelectorAll("[data-select-order]"),
+    ];
+
+    visibleCheckboxes.forEach((checkbox) => {
+      const id = checkbox.dataset.selectOrder;
+
+      if (target.checked) {
+        selectedOrderIds.add(id);
+      } else {
+        selectedOrderIds.delete(id);
+      }
+    });
+
+    render();
+    return;
+  }
+
+  const checkbox = target.closest("[data-select-order]");
+  if (!checkbox) return;
+
+  const id = checkbox.dataset.selectOrder;
+
+  if (checkbox.checked) {
+    selectedOrderIds.add(id);
+  } else {
+    selectedOrderIds.delete(id);
+  }
+
+  render();
+}
+
+async function archiveSelectedOrders() {
+  const selectedOrders = orders.filter(
+    (order) =>
+      selectedOrderIds.has(order.id) &&
+      !order.archived_at &&
+      hasFinancialHistory(order),
+  );
+
+  if (!selectedOrders.length) {
+    notify("Nenhum pedido elegível foi selecionado.");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Arquivar ${selectedOrders.length} pedido(s) selecionado(s)?\n\n` +
+      "Os pedidos sairão da lista de ativos, mas continuarão salvos no banco. " +
+      "Todos os pagamentos e registros financeiros serão preservados.",
+  );
+
+  if (!confirmed) return;
+
+  const button = content.querySelector("#orders-bulk-archive");
+  const checkboxes = content.querySelectorAll(".orders-select-order");
+
+  if (button) {
+    button.disabled = true;
+    button.innerHTML =
+      '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Arquivando...';
+  }
+
+  checkboxes.forEach((checkbox) => {
+    checkbox.disabled = true;
+  });
+
+  let archivedCount = 0;
+  const failures = [];
+
+  for (const order of selectedOrders) {
+    try {
+      const { data, error } = await supabase.rpc(
+        "archive_order_preserving_financial_history",
+        { p_order_id: order.id },
+      );
+
+      if (error) throw error;
+
+      if (data?.success !== true) {
+        throw new Error(data?.error || "O banco não confirmou o arquivamento.");
+      }
+
+      order.archived_at = data.archived_at || new Date().toISOString();
+
+      selectedOrderIds.delete(order.id);
+      archivedCount++;
+    } catch (error) {
+      console.error(`Erro ao arquivar pedido #${order.order_number}:`, error);
+
+      failures.push(
+        `#${order.order_number}: ${error.message || "erro desconhecido"}`,
+      );
+    }
+  }
+
+  updateSummary();
+  render();
+
+  if (failures.length === 0) {
+    notify(
+      `${archivedCount} pedido(s) arquivado(s). Histórico financeiro preservado.`,
+    );
+  } else {
+    notify(
+      `${archivedCount} pedido(s) arquivado(s). ` +
+        `${failures.length} falha(s): ${failures.join(" | ")}`,
+    );
+  }
 }
 
 function updateSummary() {
@@ -474,17 +716,20 @@ function updateSummary() {
 
   content.querySelector("#orders-total").textContent = activeOrders.length;
 
-  content.querySelector("#orders-pending").textContent =
-    activeOrders.filter((order) => order.status === "pending").length;
+  content.querySelector("#orders-pending").textContent = activeOrders.filter(
+    (order) => order.status === "pending",
+  ).length;
 
-  content.querySelector("#orders-progress").textContent =
-    activeOrders.filter((order) =>
-      ["confirmed", "preparing", "ready", "out_for_delivery"]
-        .includes(order.status)
-    ).length;
+  content.querySelector("#orders-progress").textContent = activeOrders.filter(
+    (order) =>
+      ["confirmed", "preparing", "ready", "out_for_delivery"].includes(
+        order.status,
+      ),
+  ).length;
 
-  content.querySelector("#orders-completed").textContent =
-    activeOrders.filter((order) => order.status === "completed").length;
+  content.querySelector("#orders-completed").textContent = activeOrders.filter(
+    (order) => order.status === "completed",
+  ).length;
 }
 
 async function loadOrders() {
@@ -499,7 +744,8 @@ async function loadOrders() {
   try {
     const { data, error } = await supabase
       .from("orders")
-      .select(`
+      .select(
+        `
         id,
         order_number,
         status,
@@ -528,7 +774,8 @@ async function loadOrders() {
         ),
         payments (method,status,payment_channel,provider,paid_at),
         cash_transactions (id)
-      `)
+      `,
+      )
       .order("created_at", { ascending: false })
       .limit(200);
 
@@ -551,7 +798,9 @@ async function loadOrders() {
       `;
     }
 
-    notify(`Erro ao carregar pedidos: ${error.message || "verifique as permissões"}`);
+    notify(
+      `Erro ao carregar pedidos: ${error.message || "verifique as permissões"}`,
+    );
   }
 }
 
@@ -563,10 +812,12 @@ function formatAddress(address) {
   }
 
   if (typeof address === "object") {
-    return Object.values(address)
-      .filter((value) => value !== null && value !== "")
-      .map(escapeHTML)
-      .join(", ") || "Não informado";
+    return (
+      Object.values(address)
+        .filter((value) => value !== null && value !== "")
+        .map(escapeHTML)
+        .join(", ") || "Não informado"
+    );
   }
 
   return "Não informado";
@@ -619,28 +870,47 @@ function openDetails(id) {
         <div class="order-detail-grid" style="margin-top:12px">
           <div class="order-detail-item">
             <small>Pagamento</small>
-            <strong>${(() => { const p=(order.payments||[])[0]; return p ? ({pix:"Pix",card:"Cartão online",onsite_card:"Cartão na entrega",cash:"Dinheiro"}[p.method]||p.method)+` · ${{pending:"Pendente",paid:"Pago",failed:"Falhou",refunded:"Estornado"}[p.status]||p.status}` : "Não informado"; })()}</strong>
+            <strong>${(() => {
+              const p = (order.payments || [])[0];
+              return p
+                ? ({
+                    pix: "Pix",
+                    card: "Cartão online",
+                    onsite_card: "Cartão na entrega",
+                    cash: "Dinheiro",
+                  }[p.method] || p.method) +
+                    ` · ${{ pending: "Pendente", paid: "Pago", failed: "Falhou", refunded: "Estornado" }[p.status] || p.status}`
+                : "Não informado";
+            })()}</strong>
           </div>
           <div class="order-detail-item">
             <small>Entregador</small>
             <strong>${escapeHTML(order.assigned_courier || "Não atribuído")}</strong>
           </div>
         </div>
-        ${order.fulfillment === "delivery" ? `
+        ${
+          order.fulfillment === "delivery"
+            ? `
           <div class="order-status-control">
             <strong>Dados da entrega própria</strong>
             <input data-courier-name type="text" maxlength="120" placeholder="Nome do entregador" value="${escapeHTML(order.assigned_courier || "")}">
             <input data-courier-phone type="tel" maxlength="15" placeholder="Telefone do entregador" value="${escapeHTML(order.courier_phone || "")}">
             <textarea data-delivery-notes rows="2" maxlength="1000" placeholder="Instruções da entrega">${escapeHTML(order.delivery_notes || "")}</textarea>
             <button type="button" class="orders-btn orders-btn-primary" data-save-delivery="${escapeHTML(order.id)}">Salvar dados da entrega</button>
-          </div>` : ""}
-        ${(order.payments||[]).some(p=>p.payment_channel==="onsite"&&p.status!=="paid") ? `<button type="button" class="orders-btn orders-btn-primary" data-mark-onsite-paid="${escapeHTML(order.id)}">Confirmar cartão recebido na entrega</button>` : ""}
+          </div>`
+            : ""
+        }
+        ${(order.payments || []).some((p) => p.payment_channel === "onsite" && p.status !== "paid") ? `<button type="button" class="orders-btn orders-btn-primary" data-mark-onsite-paid="${escapeHTML(order.id)}">Confirmar cartão recebido na entrega</button>` : ""}
 
         <h4>Itens do pedido</h4>
 
         <table class="order-items">
           <tbody>
-            ${items.length ? items.map((item) => `
+            ${
+              items.length
+                ? items
+                    .map(
+                      (item) => `
               <tr>
                 <td>
                   <strong>${escapeHTML(item.product_name)}</strong>
@@ -648,9 +918,13 @@ function openDetails(id) {
                 </td>
                 <td>${money(item.line_total)}</td>
               </tr>
-            `).join("") : `
+            `,
+                    )
+                    .join("")
+                : `
               <tr><td>Nenhum item encontrado.</td></tr>
-            `}
+            `
+            }
           </tbody>
         </table>
 
@@ -676,11 +950,15 @@ function openDetails(id) {
         <label class="order-status-control">
           <strong>Atualizar status do pedido</strong>
           <select data-status-id="${escapeHTML(order.id)}">
-            ${Object.entries(statuses).map(([value, label]) => `
+            ${Object.entries(statuses)
+              .map(
+                ([value, label]) => `
               <option value="${value}" ${order.status === value ? "selected" : ""}>
                 ${label}
               </option>
-            `).join("")}
+            `,
+              )
+              .join("")}
           </select>
         </label>
       </section>
@@ -691,17 +969,20 @@ function openDetails(id) {
 async function handleTableAction(event) {
   const archiveButton = event.target.closest("[data-order-archive]");
   if (archiveButton) {
-    const order = orders.find((item) => item.id === archiveButton.dataset.orderArchive);
+    const order = orders.find(
+      (item) => item.id === archiveButton.dataset.orderArchive,
+    );
     if (!order) return;
 
     const confirmed = window.confirm(
       `Arquivar o pedido #${order.order_number}?\\n\\n` +
-      "O pedido sairá da lista de ativos, mas continuará salvo no banco com todos os pagamentos e registros financeiros."
+        "O pedido sairá da lista de ativos, mas continuará salvo no banco com todos os pagamentos e registros financeiros.",
     );
     if (!confirmed) return;
 
     archiveButton.disabled = true;
-    archiveButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Arquivando...';
+    archiveButton.innerHTML =
+      '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Arquivando...';
 
     try {
       const { data, error } = await supabase.rpc(
@@ -716,11 +997,14 @@ async function handleTableAction(event) {
       order.archived_at = data.archived_at || new Date().toISOString();
       updateSummary();
       render();
-      notify(`Pedido #${order.order_number} arquivado. Histórico financeiro preservado.`);
+      notify(
+        `Pedido #${order.order_number} arquivado. Histórico financeiro preservado.`,
+      );
     } catch (error) {
       console.error("Erro ao arquivar pedido:", error);
       archiveButton.disabled = false;
-      archiveButton.innerHTML = '<i class="fa-solid fa-box-archive" aria-hidden="true"></i> Arquivar';
+      archiveButton.innerHTML =
+        '<i class="fa-solid fa-box-archive" aria-hidden="true"></i> Arquivar';
       notify(error.message || "Não foi possível arquivar o pedido.");
     }
     return;
@@ -728,23 +1012,25 @@ async function handleTableAction(event) {
 
   const restoreButton = event.target.closest("[data-order-restore]");
   if (restoreButton) {
-    const order = orders.find((item) => item.id === restoreButton.dataset.orderRestore);
+    const order = orders.find(
+      (item) => item.id === restoreButton.dataset.orderRestore,
+    );
     if (!order) return;
 
     const confirmed = window.confirm(
       `Restaurar o pedido #${order.order_number}?\\n\\n` +
-      "Ele voltará para a lista de pedidos ativos. O histórico financeiro será mantido."
+        "Ele voltará para a lista de pedidos ativos. O histórico financeiro será mantido.",
     );
     if (!confirmed) return;
 
     restoreButton.disabled = true;
-    restoreButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Restaurando...';
+    restoreButton.innerHTML =
+      '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Restaurando...';
 
     try {
-      const { data, error } = await supabase.rpc(
-        "restore_archived_order",
-        { p_order_id: order.id },
-      );
+      const { data, error } = await supabase.rpc("restore_archived_order", {
+        p_order_id: order.id,
+      });
       if (error) throw error;
       if (data?.success !== true) {
         throw new Error(data?.error || "O banco não confirmou a restauração.");
@@ -753,11 +1039,14 @@ async function handleTableAction(event) {
       order.archived_at = null;
       updateSummary();
       render();
-      notify(`Pedido #${order.order_number} restaurado para os pedidos ativos.`);
+      notify(
+        `Pedido #${order.order_number} restaurado para os pedidos ativos.`,
+      );
     } catch (error) {
       console.error("Erro ao restaurar pedido:", error);
       restoreButton.disabled = false;
-      restoreButton.innerHTML = '<i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Restaurar';
+      restoreButton.innerHTML =
+        '<i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Restaurar';
       notify(error.message || "Não foi possível restaurar o pedido.");
     }
     return;
@@ -765,18 +1054,21 @@ async function handleTableAction(event) {
 
   const deleteButton = event.target.closest("[data-order-delete]");
   if (deleteButton) {
-    const order = orders.find((item) => item.id === deleteButton.dataset.orderDelete);
+    const order = orders.find(
+      (item) => item.id === deleteButton.dataset.orderDelete,
+    );
     if (!order) return;
 
     const confirmed = window.confirm(
       `Excluir permanentemente o pedido #${order.order_number}?\\n\\n` +
-      "A cobrança online será verificada e, se ainda estiver aberta, será expirada. " +
-      "Pedidos com pagamento recebido ou movimentação no caixa não podem ser excluídos."
+        "A cobrança online será verificada e, se ainda estiver aberta, será expirada. " +
+        "Pedidos com pagamento recebido ou movimentação no caixa não podem ser excluídos.",
     );
     if (!confirmed) return;
 
     deleteButton.disabled = true;
-    deleteButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Excluindo...';
+    deleteButton.innerHTML =
+      '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Excluindo...';
 
     try {
       const { data, error } = await supabase.functions.invoke(
@@ -792,7 +1084,11 @@ async function handleTableAction(event) {
             responseMessage = payload?.error;
           } catch (_) {}
         }
-        throw new Error(responseMessage || error.message || "Não foi possível validar a cobrança no Mercado Pago.");
+        throw new Error(
+          responseMessage ||
+            error.message ||
+            "Não foi possível validar a cobrança no Mercado Pago.",
+        );
       }
       if (data?.success !== true) {
         throw new Error(data?.error || "O banco não confirmou a exclusão.");
@@ -805,7 +1101,8 @@ async function handleTableAction(event) {
     } catch (error) {
       console.error("Erro ao excluir pedido:", error);
       deleteButton.disabled = false;
-      deleteButton.innerHTML = '<i class="fa-solid fa-trash-can" aria-hidden="true"></i> Excluir';
+      deleteButton.innerHTML =
+        '<i class="fa-solid fa-trash-can" aria-hidden="true"></i> Excluir';
       notify(error.message || "Não foi possível excluir o pedido.");
     }
     return;
@@ -829,10 +1126,21 @@ async function handleModalClick(event) {
       note: "Dados do entregador atualizados.",
     };
     saveDelivery.disabled = true;
-    const { data, error } = await supabase.functions.invoke("manage-delivery", { body });
-    if (error || data?.error) { notify(data?.error || error.message); saveDelivery.disabled = false; return; }
-    const order = orders.find(item => item.id === body.order_id);
-    if (order) Object.assign(order, { assigned_courier: body.courier_name, courier_phone: body.courier_phone, delivery_notes: body.delivery_notes });
+    const { data, error } = await supabase.functions.invoke("manage-delivery", {
+      body,
+    });
+    if (error || data?.error) {
+      notify(data?.error || error.message);
+      saveDelivery.disabled = false;
+      return;
+    }
+    const order = orders.find((item) => item.id === body.order_id);
+    if (order)
+      Object.assign(order, {
+        assigned_courier: body.courier_name,
+        courier_phone: body.courier_phone,
+        delivery_notes: body.delivery_notes,
+      });
     notify("Dados da entrega salvos.");
     openDetails(body.order_id);
     return;
@@ -840,9 +1148,16 @@ async function handleModalClick(event) {
   if (markPaid) {
     markPaid.disabled = true;
     const { data, error } = await supabase.functions.invoke("manage-delivery", {
-      body: { order_id: markPaid.dataset.markOnsitePaid, action: "mark_payment_received" },
+      body: {
+        order_id: markPaid.dataset.markOnsitePaid,
+        action: "mark_payment_received",
+      },
     });
-    if (error || data?.error) { notify(data?.error || error.message); markPaid.disabled = false; return; }
+    if (error || data?.error) {
+      notify(data?.error || error.message);
+      markPaid.disabled = false;
+      return;
+    }
     notify("Pagamento presencial marcado como recebido.");
     await loadOrders();
     openDetails(markPaid.dataset.markOnsitePaid);
@@ -889,7 +1204,11 @@ async function handleStatusChange(event) {
 
   try {
     const { data, error } = await supabase.functions.invoke("manage-delivery", {
-      body: { order_id: order.id, status: newStatus, note: `Status alterado para ${statuses[newStatus]}.` },
+      body: {
+        order_id: order.id,
+        status: newStatus,
+        note: `Status alterado para ${statuses[newStatus]}.`,
+      },
     });
     if (error) {
       const message = await getEdgeFunctionErrorMessage(error, data);
@@ -910,7 +1229,9 @@ async function handleStatusChange(event) {
     console.error("Erro ao atualizar pedido:", error);
     select.value = previousStatus;
     select.disabled = false;
-    notify(`Não foi possível atualizar o pedido: ${error.message || "erro desconhecido"}`);
+    notify(
+      `Não foi possível atualizar o pedido: ${error.message || "erro desconhecido"}`,
+    );
   }
 }
 

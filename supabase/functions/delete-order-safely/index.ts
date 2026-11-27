@@ -95,15 +95,70 @@ async function verifyNoGatewayPayment(orderId: string, payments: any[]) {
     }
 
     const financialOrActivePayment = orderPayments.find((item: any) =>
-      !["rejected", "cancelled"].includes(String(item?.status || "").toLowerCase())
+   
+// Cancela cobranças pendentes diretamente no Mercado Pago.
+const pendingPayments = orderPayments.filter((item: any) =>
+  String(item?.status || "").toLowerCase() === "pending"
+);
+
+for (const pending of pendingPayments) {
+  const paymentId = String(pending?.id || "");
+
+  if (!paymentId) {
+    return {
+      ok: false as const,
+      message: "Cobrança pendente sem identificador no Mercado Pago. O pedido foi mantido por segurança.",
+    };
+  }
+
+  const cancelResponse = await mpRequest(
+    `/v1/payments/${encodeURIComponent(paymentId)}`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ status: "cancelled" }),
+    },
+  );
+
+  if (!cancelResponse.ok) {
+    console.error(
+      "Mercado Pago pending payment cancellation failed",
+      cancelResponse.status,
+      await cancelResponse.text(),
     );
-    if (financialOrActivePayment) {
-      const status = String(financialOrActivePayment.status || "desconhecido").toLowerCase();
-      const message = status === "approved"
-        ? "O pagamento aprovado foi sincronizado no sistema. O pedido não pode ser excluído; arquive-o para preservar o histórico financeiro."
-        : `O Mercado Pago encontrou uma cobrança com status "${status}". O pedido não foi excluído; arquive-o.`;
-      return { ok: false as const, message };
-    }
+
+    return {
+      ok: false as const,
+      message: "Não foi possível cancelar a cobrança pendente no Mercado Pago. O pedido foi mantido.",
+    };
+  }
+
+  const cancelledPayment = await cancelResponse.json();
+
+  if (String(cancelledPayment?.status || "").toLowerCase() !== "cancelled") {
+    return {
+      ok: false as const,
+      message: `O Mercado Pago não confirmou o cancelamento. Status atual: ${cancelledPayment?.status || "desconhecido"}.`,
+    };
+  }
+}
+
+// Qualquer status diferente dos estados finais seguros continua bloqueando.
+const financialOrActivePayment = orderPayments.find((item: any) =>
+  !["rejected", "cancelled", "pending"].includes(
+    String(item?.status || "").toLowerCase()
+  )
+);
+
+if (financialOrActivePayment) {
+  const status = String(
+    financialOrActivePayment.status || "desconhecido"
+  ).toLowerCase();
+
+  return {
+    ok: false as const,
+    message: `O Mercado Pago encontrou uma cobrança com status "${status}". O pedido não foi excluído; arquive-o para preservar o histórico financeiro.`,
+  };
+}
 
     const preferenceResponse = await mpRequest(`/checkout/preferences/${encodeURIComponent(payment.provider_reference)}`);
     if (preferenceResponse.status === 404) continue;
@@ -156,9 +211,24 @@ async function verifyNoGatewayPayment(orderId: string, payments: any[]) {
   }
   const finalData = await finalSearch.json();
   const finalResults = Array.isArray(finalData?.results) ? finalData.results : [];
-  if (Number(finalData?.paging?.total || 0) > finalResults.length || finalResults.some((item: any) => !["rejected", "cancelled"].includes(String(item?.status || "").toLowerCase()))) {
-    return { ok: false as const, message: "Foi encontrada uma cobrança ativa ou com histórico no Mercado Pago. O pedido não foi excluído; arquive-o." };
-  }
+ 
+const finalOrderPayments = finalResults.filter((item: any) =>
+  String(item?.external_reference || "") === orderId
+);
+
+if (
+  Number(finalData?.paging?.total || 0) > finalResults.length ||
+  finalOrderPayments.some((item: any) =>
+    !["rejected", "cancelled"].includes(
+      String(item?.status || "").toLowerCase()
+    )
+  )
+) {
+  return {
+    ok: false as const,
+    message: "O Mercado Pago ainda possui uma cobrança ativa ou em processamento para este pedido. O pedido foi mantido.",
+  };
+}
 
   return { ok: true as const };
 }
