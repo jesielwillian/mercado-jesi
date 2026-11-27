@@ -14,6 +14,16 @@ const money = (value) =>
     currency: "BRL",
   }).format(Number(value || 0));
 
+const formatMoneyInput = (value) => {
+  const digits = String(value ?? "").replace(/\D/g, "").slice(0, 14);
+  if (!digits) return "";
+  const amount = Number(digits) / 100;
+  return `R$ ${amount.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
 const parseMoney = (value) => {
   let normalized = String(value ?? "")
     .trim()
@@ -330,16 +340,20 @@ function renderCashGate() {
         <label class="pos-field">
           <span>Fundo de caixa (R$)</span>
           <input name="opening_amount" type="text" inputmode="decimal"
-            autocomplete="off" placeholder="0,00" value="0,00" required>
+            autocomplete="off" placeholder="R$ 0,00" value="R$ 0,00" required>
         </label>
         <button class="pos-primary" type="submit">Abrir caixa</button>
       </form>
     </section>
   `;
 
-  content
-    .querySelector("#pos-open-form")
-    .addEventListener("submit", openRegister);
+  const form = content.querySelector("#pos-open-form");
+  const openingInput = form.querySelector('[name="opening_amount"]');
+
+  openingInput.addEventListener("input", () => {
+    openingInput.value = formatMoneyInput(openingInput.value);
+  });
+  form.addEventListener("submit", openRegister);
 }
 
 async function openRegister(event) {

@@ -7,6 +7,16 @@ const money = (value) =>
     currency: "BRL",
   });
 
+const formatMoneyInput = (value) => {
+  const digits = String(value ?? "").replace(/\D/g, "").slice(0, 14);
+  if (!digits) return "";
+  const amount = Number(digits) / 100;
+  return `R$ ${amount.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
 // Converte valores digitados no padrão brasileiro (100,00 / 1.000,00)
 // e também aceita o padrão decimal com ponto (100.00).
 const parseMoney = (value) => {
@@ -225,7 +235,7 @@ export function mountCashAdmin({ content, notify }) {
           <h3>Abrir novo caixa</h3>
           <form class="cash-form" data-form="open">
             <label>Valor inicial em dinheiro (R$)
-              <input name="opening_amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" value="0,00" required>
+              <input name="opening_amount" type="text" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" value="R$ 0,00" required>
             </label>
             <button class="cash-button" type="submit">Abrir caixa</button>
           </form>
@@ -432,6 +442,12 @@ export function mountCashAdmin({ content, notify }) {
     notify(`Caixa fechado. ${label}.`);
     await loadData();
   }
+
+  root.addEventListener("input", (event) => {
+    const input = event.target;
+    if (!input.matches('input[name="opening_amount"]')) return;
+    input.value = formatMoneyInput(input.value);
+  });
 
   root.addEventListener("click", async (event) => {
     const button = event.target.closest('[data-action="refresh"]');
