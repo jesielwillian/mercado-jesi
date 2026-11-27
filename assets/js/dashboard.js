@@ -27,7 +27,9 @@ const notificationButton = document.querySelector("#notification-button");
 const notificationPanel = document.querySelector("#notification-panel");
 const notificationList = document.querySelector("#notification-list");
 const notificationDot = document.querySelector("#notification-dot");
-const notificationMessagesButton = document.querySelector("#notification-messages");
+const notificationMessagesButton = document.querySelector(
+  "#notification-messages",
+);
 
 let notificationCache = [];
 
@@ -44,7 +46,9 @@ function renderNotifications(items = []) {
     return;
   }
 
-  notificationList.innerHTML = items.map(item => `
+  notificationList.innerHTML = items
+    .map(
+      (item) => `
     <button type="button" class="notification-item" data-notification="messages">
       <i class="${item.icon}"></i>
       <span>
@@ -52,7 +56,9 @@ function renderNotifications(items = []) {
         <small>${item.text}</small>
       </span>
     </button>
-  `).join("");
+  `,
+    )
+    .join("");
 }
 
 async function loadNotifications() {
@@ -77,11 +83,13 @@ async function loadNotifications() {
       count.hidden = messages.length === 0;
     }
 
-    renderNotifications(messages.map(item => ({
-      icon: "fa-solid fa-envelope",
-      title: "Nova mensagem",
-      text: `${item.name || "Cliente"} · ${item.subject || "Sem assunto"}`,
-    })));
+    renderNotifications(
+      messages.map((item) => ({
+        icon: "fa-solid fa-envelope",
+        title: "Nova mensagem",
+        text: `${item.name || "Cliente"} · ${item.subject || "Sem assunto"}`,
+      })),
+    );
   } catch (error) {
     console.warn("Não foi possível atualizar as notificações:", error);
   }
@@ -105,9 +113,11 @@ notificationButton?.addEventListener("click", () => {
   else closeNotifications();
 });
 
-document.querySelector("#notification-close")?.addEventListener("click", closeNotifications);
+document
+  .querySelector("#notification-close")
+  ?.addEventListener("click", closeNotifications);
 
-notificationList?.addEventListener("click", event => {
+notificationList?.addEventListener("click", (event) => {
   const item = event.target.closest("[data-notification]");
   if (!item) return;
   closeNotifications();
@@ -119,9 +129,12 @@ notificationMessagesButton?.addEventListener("click", () => {
   showModule("messages");
 });
 
-document.addEventListener("click", event => {
+document.addEventListener("click", (event) => {
   if (!notificationPanel || notificationPanel.hidden) return;
-  if (!event.target.closest("#notification-panel") && !event.target.closest("#notification-button")) {
+  if (
+    !event.target.closest("#notification-panel") &&
+    !event.target.closest("#notification-button")
+  ) {
     closeNotifications();
   }
 });
@@ -131,35 +144,39 @@ async function refreshNotificationState() {
 }
 
 function enhanceNumberInputs(root = document) {
-  root.querySelectorAll('input[type="number"]:not([data-number-enhanced])').forEach(input => {
-    input.dataset.numberEnhanced = "true";
-    const wrapper = document.createElement("span");
-    wrapper.className = "number-input-wrap";
-    input.parentNode.insertBefore(wrapper, input);
-    wrapper.appendChild(input);
+  root
+    .querySelectorAll('input[type="number"]:not([data-number-enhanced])')
+    .forEach((input) => {
+      input.dataset.numberEnhanced = "true";
+      const wrapper = document.createElement("span");
+      wrapper.className = "number-input-wrap";
+      input.parentNode.insertBefore(wrapper, input);
+      wrapper.appendChild(input);
 
-    const controls = document.createElement("span");
-    controls.className = "number-input-actions";
-    controls.innerHTML = `
+      const controls = document.createElement("span");
+      controls.className = "number-input-actions";
+      controls.innerHTML = `
       <button type="button" data-step="up" aria-label="Aumentar valor"><i class="fa-solid fa-chevron-up"></i></button>
       <button type="button" data-step="down" aria-label="Diminuir valor"><i class="fa-solid fa-chevron-down"></i></button>`;
-    wrapper.appendChild(controls);
+      wrapper.appendChild(controls);
 
-    controls.addEventListener("click", event => {
-      const button = event.target.closest("[data-step]");
-      if (!button) return;
-      const step = input.step && input.step !== "any" ? Number(input.step) : 1;
-      const min = input.min === "" ? -Infinity : Number(input.min);
-      const max = input.max === "" ? Infinity : Number(input.max);
-      const decimals = (String(step).split(".")[1] || "").length;
-      const current = input.value === "" ? 0 : Number(input.value);
-      let next = button.dataset.step === "up" ? current + step : current - step;
-      next = Math.min(max, Math.max(min, next));
-      input.value = decimals ? next.toFixed(decimals) : String(next);
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
+      controls.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-step]");
+        if (!button) return;
+        const step =
+          input.step && input.step !== "any" ? Number(input.step) : 1;
+        const min = input.min === "" ? -Infinity : Number(input.min);
+        const max = input.max === "" ? Infinity : Number(input.max);
+        const decimals = (String(step).split(".")[1] || "").length;
+        const current = input.value === "" ? 0 : Number(input.value);
+        let next =
+          button.dataset.step === "up" ? current + step : current - step;
+        next = Math.min(max, Math.max(min, next));
+        input.value = decimals ? next.toFixed(decimals) : String(next);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
     });
-  });
 }
 
 const numberObserver = new MutationObserver(() => enhanceNumberInputs(content));
@@ -194,20 +211,36 @@ document.querySelector("#current-date").textContent = new Intl.DateTimeFormat(
 function translateNotice(value) {
   let text = String(value ?? "");
   const translations = [
-    [/inventory is not defined/ig, "estoque não está definido"],
-    [/permission denied/ig, "permissão negada"],
-    [/row-level security policy/ig, "política de segurança do banco (RLS)"],
-    [/JWT expired/ig, "sua sessão expirou. Entre novamente"],
-    [/invalid login credentials/ig, "e-mail ou senha incorretos"],
-    [/failed to fetch/ig, "falha de conexão. Verifique sua internet"],
-    [/duplicate key value violates unique constraint/ig, "este registro já existe"],
-    [/violates foreign key constraint/ig, "não é possível concluir: há registros relacionados"],
-    [/new row violates row-level security/ig, "a operação não foi autorizada pelas regras de acesso"],
-    [/relation .* does not exist/ig, "tabela não encontrada no Supabase. Verifique se aplicou as migrations"],
-    [/function .* does not exist/ig, "função não encontrada no Supabase. Aplique a migration pendente"],
-    [/network request failed/ig, "falha de comunicação com o servidor"]
+    [/inventory is not defined/gi, "estoque não está definido"],
+    [/permission denied/gi, "permissão negada"],
+    [/row-level security policy/gi, "política de segurança do banco (RLS)"],
+    [/JWT expired/gi, "sua sessão expirou. Entre novamente"],
+    [/invalid login credentials/gi, "e-mail ou senha incorretos"],
+    [/failed to fetch/gi, "falha de conexão. Verifique sua internet"],
+    [
+      /duplicate key value violates unique constraint/gi,
+      "este registro já existe",
+    ],
+    [
+      /violates foreign key constraint/gi,
+      "não é possível concluir: há registros relacionados",
+    ],
+    [
+      /new row violates row-level security/gi,
+      "a operação não foi autorizada pelas regras de acesso",
+    ],
+    [
+      /relation .* does not exist/gi,
+      "tabela não encontrada no Supabase. Verifique se aplicou as migrations",
+    ],
+    [
+      /function .* does not exist/gi,
+      "função não encontrada no Supabase. Aplique a migration pendente",
+    ],
+    [/network request failed/gi, "falha de comunicação com o servidor"],
   ];
-  for (const [pattern, replacement] of translations) text = text.replace(pattern, replacement);
+  for (const [pattern, replacement] of translations)
+    text = text.replace(pattern, replacement);
   return text;
 }
 
@@ -238,38 +271,44 @@ async function loadOverview() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const [recentOrdersResult, ordersCountResult, pendingOrdersResult, productsResult, inventoryResult, todaySalesResult] =
-    await Promise.all([
-      supabase
-        .from("orders")
-        .select("id,order_number,customer_name,total,status,created_at,deleted_at")
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false })
-        .limit(5),
+  const [
+    recentOrdersResult,
+    ordersCountResult,
+    pendingOrdersResult,
+    productsResult,
+    inventoryResult,
+    todaySalesResult,
+  ] = await Promise.all([
+    supabase
+      .from("orders")
+      .select(
+        "id,order_number,customer_name,total,status,created_at,deleted_at",
+      )
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(5),
 
-      supabase
-        .from("orders")
-        .select("id", { count: "exact", head: true })
-        .is("deleted_at", null),
+    supabase
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null),
 
-      supabase
-        .from("orders")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "pending")
-        .is("deleted_at", null)
-        .is("archived_at", null),
+    supabase
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null),
 
-      supabase.from("products").select("id", { count: "exact", head: true }),
+    supabase.from("products").select("id", { count: "exact", head: true }),
 
-      supabase.from("inventory").select("quantity,minimum_quantity"),
+    supabase.from("inventory").select("quantity,minimum_quantity"),
 
-      supabase
-        .from("payments")
-        .select("amount")
-        .eq("status", "paid")
-        .not("paid_at", "is", null)
-        .gte("paid_at", today.toISOString()),
-    ]);
+    supabase
+      .from("payments")
+      .select("amount")
+      .eq("status", "paid")
+      .not("paid_at", "is", null)
+      .gte("paid_at", today.toISOString()),
+  ]);
 
   const errors = [
     recentOrdersResult.error,
@@ -312,11 +351,14 @@ async function loadOverview() {
   }
 
   const ordersNavCount = document.querySelector("#orders-nav-count");
+
   if (!pendingOrdersResult.error && ordersNavCount) {
-    const pendingCount = Number(pendingOrdersResult.count ?? 0);
-    ordersNavCount.textContent = String(pendingCount);
-    ordersNavCount.hidden = pendingCount === 0;
+    const totalOrders = Number(pendingOrdersResult.count ?? 0);
+
+    ordersNavCount.textContent = String(totalOrders);
+    ordersNavCount.hidden = totalOrders === 0;
   }
+  F;
 
   if (!productsResult.error && productsEl) {
     productsEl.textContent = String(productsResult.count ?? 0);
@@ -351,17 +393,24 @@ async function loadOverview() {
     };
 
     tbody.innerHTML = orders.length
-      ? orders.map((order) => {
-          const safeOrderNumber = String(order.order_number ?? "").replace(/[&<>"']/g, "");
-          const safeCustomerName = String(order.customer_name || "Cliente").replace(/[&<>"']/g, "");
-          const status = statusLabels[order.status] || "Desconhecido";
-          const statusClass = order.status === "pending"
-            ? "pending"
-            : ["preparing", "out_for_delivery"].includes(order.status)
-              ? "preparing"
-              : "done";
+      ? orders
+          .map((order) => {
+            const safeOrderNumber = String(order.order_number ?? "").replace(
+              /[&<>"']/g,
+              "",
+            );
+            const safeCustomerName = String(
+              order.customer_name || "Cliente",
+            ).replace(/[&<>"']/g, "");
+            const status = statusLabels[order.status] || "Desconhecido";
+            const statusClass =
+              order.status === "pending"
+                ? "pending"
+                : ["preparing", "out_for_delivery"].includes(order.status)
+                  ? "preparing"
+                  : "done";
 
-          return `
+            return `
             <tr>
               <td>#${safeOrderNumber}</td>
               <td>${safeCustomerName}</td>
@@ -370,12 +419,15 @@ async function loadOverview() {
               <td><span class="status ${statusClass}">${status}</span></td>
             </tr>
           `;
-        }).join("")
+          })
+          .join("")
       : '<tr><td colspan="5">Nenhum pedido registrado.</td></tr>';
   }
 
   if (errors.length) {
-    notify("Alguns indicadores não puderam ser atualizados. Consulte o console para identificar a consulta com erro.");
+    notify(
+      "Alguns indicadores não puderam ser atualizados. Consulte o console para identificar a consulta com erro.",
+    );
   }
 }
 
