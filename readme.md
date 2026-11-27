@@ -234,5 +234,23 @@ A navegação administrativa ganhou **Operações avançadas**, com:
 - Fidelidade: regra inicial de pontos está fixa em 1 ponto/R$ 10 e não há resgate/troca no checkout.
 - Etiquetas: o navegador imprime em folha; o alinhamento deve ser ajustado ao modelo físico de etiqueta.
 - Leitura por câmera depende do navegador/dispositivo; leitor USB continua disponível como teclado.
-- Não há rastreamento público por número de pedido/telefone nesta versão, para evitar expor dados de pedidos sem autenticação/controle de tentativas.
+- O rastreamento público é feito pela página `rastreamento.html`, exigindo número do pedido, telefone e código aleatório de rastreamento. A consulta usa a RPC `get_public_order_tracking`.
 - Não foi feita publicação remota no Supabase/Vercel nem teste de pagamento real nesta execução.
+
+
+## Notificações automáticas de rastreamento
+
+A migration `0023_order_tracking_notifications.sql` cria a fila de e-mails. Ao criar um pedido ou alterar seu status, o banco registra notificações de e-mail (quando o cadastro do cliente possui e-mail). As Edge Functions `process-email-queue` e `process-whatsapp-queue` enviam as notificações usando credenciais mantidas somente nos Secrets do Supabase.
+
+### Configuração necessária no Supabase
+
+1. Execute as migrations pendentes, incluindo `0023_order_tracking_notifications.sql`.
+2. Configure os Secrets `SITE_URL` e `CORS_ALLOWED_ORIGIN` com o domínio HTTPS real da loja.
+3. Para e-mail, crie/verifique o domínio ou remetente no Resend e configure `RESEND_API_KEY` e `EMAIL_FROM`.
+4. Para WhatsApp, configure `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` e `WHATSAPP_TEMPLATE_NAME`.
+5. No WhatsApp Manager da Meta, crie e obtenha aprovação do template `order_tracking` (idioma `pt_BR`) com cinco variáveis no corpo, nesta ordem: nome do cliente, texto do evento, número do pedido, código de rastreamento e link da página de rastreamento.
+6. Faça deploy das Edge Functions `create-checkout`, `mercadopago-webhook`, `process-email-queue` e `process-whatsapp-queue`.
+
+O e-mail do checkout continua opcional: o cliente só recebe e-mail se preencher esse campo. O WhatsApp é enviado ao telefone informado, mas depende de uma conta WhatsApp Business Platform ativa e de template aprovado pela Meta. O código também aparece na confirmação do pedido no navegador; no retorno do Mercado Pago ele é recuperado do armazenamento local do mesmo navegador/dispositivo.
+
+As credenciais nunca devem ser colocadas em arquivos públicos, no frontend ou commitadas no Git.

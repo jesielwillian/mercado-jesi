@@ -182,11 +182,17 @@ Deno.serve(async (req) => {
       throw error;
     }
 
-    fetch(`${SUPABASE_URL}/functions/v1/process-whatsapp-queue`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },
-      body: "{}",
-    }).catch((error) => console.warn("WhatsApp queue processing skipped:", error));
+    const queueHeaders = { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, "Content-Type": "application/json" };
+    await Promise.all(["process-whatsapp-queue", "process-email-queue"].map(async (queueName) => {
+      try {
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/${queueName}`, {
+          method: "POST", headers: queueHeaders, body: "{}",
+        });
+        if (!response.ok) console.warn(`${queueName} returned HTTP ${response.status}`);
+      } catch (queueError) {
+        console.warn(`${queueName} skipped:`, queueError);
+      }
+    }));
 
     console.log("Pagamento processado:", {
       paymentId: payment.id,

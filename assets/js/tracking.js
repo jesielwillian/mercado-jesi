@@ -3,6 +3,18 @@ import { supabase } from './supabase.js';
 const form = document.querySelector('#track-form');
 const result = document.querySelector('#track-result');
 
+// Preenche os dados do último pedido neste mesmo navegador, quando disponíveis.
+try {
+  const saved = JSON.parse(localStorage.getItem('mercado_jesi_tracking') || 'null');
+  if (saved && form) {
+    form.elements.order_number.value = saved.order_number || '';
+    form.elements.phone.value = saved.phone || '';
+    form.elements.tracking_code.value = saved.tracking_code || '';
+  }
+} catch (error) {
+  console.warn('Não foi possível recuperar os dados locais de rastreamento:', error);
+}
+
 const labels = {
   pending: 'Pendente',
   confirmed: 'Confirmado',

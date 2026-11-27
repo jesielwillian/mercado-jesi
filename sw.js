@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'mercado-jesi-shell-v2';
+const CACHE_VERSION = 'mercado-jesi-shell-v3';
 const CACHE_PREFIX = 'mercado-jesi-';
 const SHELL = [
   '/',

@@ -577,8 +577,6 @@ async function handleStatusChange(e) {
     });
     if (error) throw new Error(await getEdgeFunctionErrorMessage(error, data));
     if (data?.error) throw new Error(data.error);
-    // O trigger do banco enfileira a notificação; processamos a fila após cada alteração.
-    supabase.functions.invoke("process-whatsapp-queue", { body: {} }).catch(error => console.warn("WhatsApp não processado agora:", error));
     o.status = next;
     o.updated_at = new Date().toISOString();
     notify(`Pedido #${o.order_number}: ${statuses[next]}.`);

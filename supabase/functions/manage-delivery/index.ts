@@ -6,6 +6,18 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const admin = createClient(URL, SERVICE_KEY, {
   auth: { persistSession: false },
 });
+async function processNotificationQueues() {
+  const headers = { Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" };
+  await Promise.all(["process-whatsapp-queue", "process-email-queue"].map(async (name) => {
+    try {
+      const response = await fetch(`${URL}/functions/v1/${name}`, { method: "POST", headers, body: "{}" });
+      if (!response.ok) console.warn(`${name} returned HTTP ${response.status}`);
+    } catch (error) {
+      console.warn(`${name} could not be processed:`, error);
+    }
+  }));
+}
+
 const allowed = new Set([
   "pending",
   "confirmed",
@@ -109,6 +121,7 @@ Deno.serve(async (req) => {
         p_reason: String(body.note || "Cancelado pela equipe"),
       });
       if (error) return json({ error: error.message }, 409);
+      await processNotificationQueues();
       return json({ ok: true });
     }
     if (status === "completed") {
@@ -178,6 +191,7 @@ Deno.serve(async (req) => {
       note: String(body.note || "Atualização da equipe").slice(0, 500),
       changed_by: authData.user.id,
     });
+    await processNotificationQueues();
     return json({ ok: true });
   } catch (error) {
     console.error("manage-delivery", error);

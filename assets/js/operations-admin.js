@@ -503,14 +503,15 @@ export function mountOperationsAdmin({ content, notify = () => {} }) {
       .join("")}</div></div>`;
     view.querySelectorAll("[data-kanban-status]").forEach((select) =>
       select.addEventListener("change", async () => {
-        const { error: updateError } = await supabase
-          .from("orders")
-          .update({
+        const { data: updateData, error: updateError } = await supabase.functions.invoke("manage-delivery", {
+          body: {
+            order_id: select.dataset.kanbanStatus,
             status: select.value,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", select.dataset.kanbanStatus);
+            note: `Status alterado para ${statusLabels[select.value] || select.value}.`,
+          },
+        });
         if (updateError) throw updateError;
+        if (updateData?.error) throw new Error(updateData.error);
         notify("Status do pedido atualizado.");
         await renderKanban();
       }),

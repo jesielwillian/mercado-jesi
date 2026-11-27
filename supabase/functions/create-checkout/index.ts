@@ -171,21 +171,17 @@ Deno.serve(async (req) => {
       throw new Error("Não foi possível gerar o código seguro de acompanhamento.");
     }
 
-    const { data: trackingOrder, error: trackingError } = await db
-      .from("orders")
-      .select("tracking_code")
-      .eq("id", order.order_id)
-      .single();
-    if (trackingError || !trackingOrder?.tracking_code) {
-      console.error("TRACKING CODE ERROR:", trackingError);
-      throw new Error("Não foi possível gerar o código seguro de acompanhamento.");
-    }
-
-    fetch(`${SUPABASE_URL}/functions/v1/process-whatsapp-queue`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },
-      body: "{}",
-    }).catch((error) => console.warn("WhatsApp queue processing skipped:", error));
+    const queueHeaders = { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, "Content-Type": "application/json" };
+    await Promise.all(["process-whatsapp-queue", "process-email-queue"].map(async (queueName) => {
+      try {
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/${queueName}`, {
+          method: "POST", headers: queueHeaders, body: "{}",
+        });
+        if (!response.ok) console.warn(`${queueName} returned HTTP ${response.status}`);
+      } catch (error) {
+        console.warn(`${queueName} skipped:`, error);
+      }
+    }));
 
     if (paymentMethod === "onsite_card") {
       return json({

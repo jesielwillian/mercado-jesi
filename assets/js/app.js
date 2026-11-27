@@ -40,6 +40,42 @@ const money=value=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL
 const escapeHtml=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const displayUnit=value=>value==="pack"?"pac":(value||"un.");
 function notify(message){toast.textContent=message;toast.classList.add("show");setTimeout(()=>toast.classList.remove("show"),2300)}
+function showTrackingReceipt({order_number,phone,tracking_code,state="success"}){
+  if(!order_number||!tracking_code)return;
+  document.querySelector("#order-tracking-receipt")?.remove();
+  const overlay=document.createElement("div");
+  overlay.id="order-tracking-receipt";
+  overlay.setAttribute("role","dialog");
+  overlay.setAttribute("aria-modal","true");
+  overlay.setAttribute("aria-labelledby","tracking-receipt-title");
+  const heading=state==="failure"?"Pedido registrado":state==="pending"?"Pedido recebido!":"Compra recebida!";
+  const description=state==="failure"
+    ?"O pagamento não foi concluído. Se você ainda deseja finalizar a compra, entre em contato com a loja. Guarde seu código para consultar o pedido."
+    :state==="pending"?"Seu pagamento está aguardando confirmação. Guarde o código abaixo para acompanhar o pedido.":"Seu pedido foi registrado. Guarde o código abaixo para acompanhar cada atualização.";
+  overlay.innerHTML=`<style>
+    #order-tracking-receipt{position:fixed;inset:0;z-index:10050;display:grid;place-items:center;padding:18px;background:rgba(12,35,24,.58);backdrop-filter:blur(5px)}
+    #order-tracking-receipt .receipt-card{width:min(100%,460px);padding:28px;border:1px solid #e2ebe3;border-radius:22px;background:#fff;box-shadow:0 24px 70px rgba(12,35,24,.2);color:#183b2b}
+    #order-tracking-receipt .receipt-icon{width:48px;height:48px;display:grid;place-items:center;border-radius:16px;background:#edf6ef;color:#176b45;font-size:22px}
+    #order-tracking-receipt h2{margin:16px 0 8px;font-size:23px}#order-tracking-receipt p{line-height:1.6;color:#637268}
+    #order-tracking-receipt .receipt-code{margin:18px 0;padding:16px;border:1px dashed #b8cdbd;border-radius:13px;background:#f6f9f6}
+    #order-tracking-receipt .receipt-code small{display:block;color:#65776a;margin-bottom:7px}
+    #order-tracking-receipt .receipt-code strong{display:block;overflow-wrap:anywhere;font-size:17px;letter-spacing:.03em;color:#164b32}
+    #order-tracking-receipt .receipt-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+    #order-tracking-receipt .receipt-actions button,#order-tracking-receipt .receipt-actions a{flex:1 1 145px;min-height:44px;display:flex;align-items:center;justify-content:center;border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+    #order-tracking-receipt .receipt-primary{background:#176b45;color:#fff}#order-tracking-receipt .receipt-secondary{background:#edf3ee;color:#244c36}
+    #order-tracking-receipt .receipt-close{position:absolute;right:calc(50% - min(230px, 50vw - 18px));top:calc(50% - 250px);border:0;background:transparent;color:#617168;font-size:25px;cursor:pointer}
+    @media(max-width:480px){#order-tracking-receipt .receipt-card{padding:22px}#order-tracking-receipt .receipt-close{top:calc(50% - 270px)}}
+  </style><section class="receipt-card"><div class="receipt-icon"><i class="fa-solid fa-box-open" aria-hidden="true"></i></div><h2 id="tracking-receipt-title">${escapeHtml(heading)}</h2><p>${escapeHtml(description)}</p><div class="receipt-code"><small>Pedido #${escapeHtml(order_number)} · Código de rastreamento</small><strong>${escapeHtml(tracking_code)}</strong></div><p>Se você informou um e-mail, receberá o código por lá quando o envio estiver configurado. As notificações por WhatsApp também dependem da ativação do WhatsApp Business. Para consultar, use o telefone informado na compra.</p><div class="receipt-actions"><button class="receipt-secondary" type="button" data-copy-tracking>Copiar código</button><a class="receipt-primary" href="./rastreamento.html">Acompanhar pedido</a></div><button class="receipt-close" type="button" aria-label="Fechar">×</button></section>`;
+  document.body.appendChild(overlay);
+  const close=()=>overlay.remove();
+  overlay.querySelector(".receipt-close").addEventListener("click",close);
+  overlay.addEventListener("click",event=>{if(event.target===overlay)close()});
+  overlay.querySelector("[data-copy-tracking]").addEventListener("click",async event=>{
+    const button=event.currentTarget;
+    try{await navigator.clipboard.writeText(String(tracking_code));button.textContent="Código copiado!";}
+    catch{button.textContent="Selecione e copie o código";}
+  });
+}
 function openCart(){drawer.classList.add("open");backdrop.classList.add("open");drawer.setAttribute("aria-hidden","false")}
 function closeCart(){drawer.classList.remove("open");backdrop.classList.remove("open");drawer.setAttribute("aria-hidden","true")}
 function renderCart(){
@@ -112,7 +148,7 @@ function openCheckout(){
       <div class="checkout-section"><h3>Seus dados</h3><div class="checkout-fields">
         <label>Nome completo<input name="name" autocomplete="name" maxlength="120" required></label>
         <label>Telefone<input name="phone" type="tel" autocomplete="tel" placeholder="(18) 99999-9999" required></label>
-        <label class="checkout-wide">E-mail (opcional)<input name="email" type="email" autocomplete="email" maxlength="254" placeholder="voce@email.com"></label>
+        <label class="checkout-wide">E-mail para receber o rastreamento (opcional)<input name="email" type="email" autocomplete="email" maxlength="254" placeholder="voce@email.com"></label>
       </div></div>
       <div class="checkout-section"><h3>Como deseja receber?</h3><label class="checkout-wide">Recebimento<select name="fulfillment" id="checkout-fulfillment" required>${deliveryOptions}</select></label>
         <div id="checkout-address" class="checkout-fields">
@@ -181,24 +217,30 @@ function openCheckout(){
       const {data,error}=await supabase.functions.invoke("create-checkout",{body:{customer,items:cart.map(item=>({product_id:item.id,quantity:item.qty})),fulfillment:values.fulfillment,payment_method:values.payment_method,coupon_code:String(values.coupon_code||"").trim().toUpperCase(),notes:orderNotes}});
       if(error){let message=data?.error||error.message||"Falha ao enviar pedido.";try{const response=await error.context?.json();message=response?.error||message;}catch{}throw new Error(message);}
       if(data?.error)throw new Error(data.error);
-      if(data.checkout_url){window.location.assign(data.checkout_url);return;}
-      cart=[];renderCart();closeCart();root.remove();
       if(data.tracking_code){
         localStorage.setItem("mercado_jesi_tracking",JSON.stringify({order_number:data.order_number,phone:customer.phone,tracking_code:data.tracking_code}));
       }
-      notify(`Pedido #${data.order_number} registrado! Código de rastreamento: ${data.tracking_code||"disponível no atendimento"}.`);
+      if(data.checkout_url){window.location.assign(data.checkout_url);return;}
+      cart=[];renderCart();closeCart();root.remove();
+      showTrackingReceipt({order_number:data.order_number,phone:customer.phone,tracking_code:data.tracking_code,state:"success"});
     }catch(err){errorEl.textContent=translateErrorMessage(err.message,"Não foi possível registrar o pedido.");button.disabled=false;button.textContent="Tentar novamente";}
   });
 }
 function showCheckoutReturn(){
   const params=new URLSearchParams(location.search),state=params.get("checkout"),number=params.get("order");
   if(!state)return;
-  const messages={success:`Pagamento encaminhado para confirmação do pedido #${number||""}.`,pending:`Pagamento pendente para o pedido #${number||""}.`,failure:`O pagamento do pedido #${number||""} não foi concluído. Se necessário, fale com o mercado.`};
   if(state==="success"){
     cart=[];
     renderCart();
   }
-  notify(messages[state]||"Retorno do pagamento recebido.");
+  let tracking=null;
+  try{tracking=JSON.parse(localStorage.getItem("mercado_jesi_tracking")||"null");}catch{}
+  if(tracking&&String(tracking.order_number)===String(number||"")){
+    showTrackingReceipt({...tracking,state});
+  }else{
+    const messages={success:`Pagamento recebido para o pedido #${number||""}.`,pending:`Pagamento pendente para o pedido #${number||""}.`,failure:`O pagamento do pedido #${number||""} não foi concluído. Se necessário, fale com o mercado.`};
+    notify(messages[state]||"Retorno do pagamento recebido.");
+  }
   history.replaceState({},document.title,location.pathname+location.hash);
 }
 loadStoreSettings();loadProducts();renderCart();showCheckoutReturn();

@@ -34,7 +34,7 @@ test('processador WhatsApp não expõe token no frontend',()=>{
 test('service worker não intercepta o painel administrativo',()=>{
   const sw=read('sw.js');
   assert.match(sw,/url\.pathname\.startsWith\('\/admin\/'\)/);
-  assert.match(sw,/CACHE_VERSION = 'mercado-jesi-shell-v2'/);
+  assert.match(sw,/CACHE_VERSION = 'mercado-jesi-shell-v3'/);
   assert.match(sw,/fetch\(request, \{ cache: 'no-store' \}\)/);
 });
 
@@ -42,4 +42,28 @@ test('login administrativo impede submissões simultâneas',()=>{
   const login=read('assets/js/admin-login.js');
   assert.match(login,/if \(isSubmitting\) return/);
   assert.match(login,/window\.location\.replace\("\/admin\/dashboard"\)/);
+});
+
+
+test('notificações de rastreamento por e-mail e WhatsApp estão preparadas',()=>{
+  const migration=read('supabase/migrations/0023_order_tracking_notifications.sql');
+  const emailFn=read('supabase/functions/process-email-queue/index.ts');
+  const whatsappFn=read('supabase/functions/process-whatsapp-queue/index.ts');
+  const checkout=read('supabase/functions/create-checkout/index.ts');
+  assert.match(migration,/create table if not exists public\.email_notifications/);
+  assert.match(migration,/after insert or update of status on public\.orders/);
+  assert.match(emailFn,/RESEND_API_KEY/);
+  assert.match(emailFn,/tracking_code/);
+  assert.match(whatsappFn,/WHATSAPP_TEMPLATE_NAME/);
+  assert.match(whatsappFn,/tracking_code/);
+  assert.match(checkout,/process-email-queue/);
+  assert.match(checkout,/process-whatsapp-queue/);
+});
+
+test('checkout mostra código de rastreamento ao cliente',()=>{
+  const app=read('assets/js/app.js');
+  assert.match(app,/showTrackingReceipt/);
+  assert.match(app,/mercado_jesi_tracking/);
+  assert.match(app,/Copiar código/);
+  assert.match(read('assets/js/tracking.js'),/mercado_jesi_tracking/);
 });
