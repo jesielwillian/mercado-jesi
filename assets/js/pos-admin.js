@@ -15,9 +15,23 @@ const money = (value) =>
   }).format(Number(value || 0));
 
 const parseMoney = (value) => {
-  const normalized = String(value ?? "").trim().replace(/\\./g, "").replace(",", ".");
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : 0;
+  let normalized = String(value ?? "")
+    .trim()
+    .replace(/^R\$\s*/i, "")
+    .replace(/[\s\u00a0]/g, "");
+
+  if (!normalized) return Number.NaN;
+
+  // Formato brasileiro: 1.234,56 -> 1234.56
+  if (normalized.includes(",")) {
+    normalized = normalized.replace(/\./g, "").replace(",", ".");
+  } else if (/^\d{1,3}(?:\.\d{3})+$/.test(normalized)) {
+    // Inteiro com separador de milhar: 1.234 -> 1234
+    normalized = normalized.replace(/\./g, "");
+  }
+
+  if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) return Number.NaN;
+  return Number(normalized);
 };
 
 const escapeHTML = (value) =>
@@ -315,8 +329,8 @@ function renderCashGate() {
       <form id="pos-open-form">
         <label class="pos-field">
           <span>Fundo de caixa (R$)</span>
-          <input name="opening_amount" type="number"
-            min="0" step="0.01" value="0" required>
+          <input name="opening_amount" type="text" inputmode="decimal"
+            autocomplete="off" placeholder="0,00" value="0,00" required>
         </label>
         <button class="pos-primary" type="submit">Abrir caixa</button>
       </form>
@@ -333,7 +347,7 @@ async function openRegister(event) {
 
   const form = event.currentTarget;
   const button = form.querySelector("button");
-  const amount = Number(new FormData(form).get("opening_amount"));
+  const amount = parseMoney(new FormData(form).get("opening_amount"));
 
   if (!Number.isFinite(amount) || amount < 0) {
     notify("Informe um valor inicial válido.");
