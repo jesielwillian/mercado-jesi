@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.js";
+import { translateErrorMessage } from "./error-translations.js";
 
 const money = (value) =>
   Number(value || 0).toLocaleString("pt-BR", {
@@ -466,7 +467,7 @@ export function mountCashAdmin({ content, notify }) {
     root.innerHTML = `
       <div class="cash-panel">
         <h3>Não foi possível carregar o caixa</h3>
-        <p class="cash-muted">${escapeHTML(error.message || "Verifique sua conexão e as permissões no Supabase.")}</p>
+        <p class="cash-muted">${escapeHTML(translateErrorMessage(error.message, "Verifique sua conexão e as permissões no Supabase."))}</p>
         <button class="cash-button secondary" type="button" data-action="refresh">Tentar novamente</button>
       </div>
     `;

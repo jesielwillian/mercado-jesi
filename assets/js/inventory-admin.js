@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.js";
+import { translateErrorMessage } from "./error-translations.js";
 
 const escapeHTML = value =>
   String(value ?? "").replace(/[&<>"']/g, char => ({
@@ -376,7 +377,7 @@ async function loadInventory() {
     console.error("Erro ao carregar estoque:", error);
     table.innerHTML = `
       <tr><td colspan="6" class="inventory-empty">
-        Não foi possível carregar o estoque: ${escapeHTML(error.message)}
+        Não foi possível carregar o estoque: ${escapeHTML(translateErrorMessage(error.message))}
       </td></tr>`;
     notify(`Erro ao carregar estoque: ${translateInventoryError(error.message)}`);
   }
@@ -586,7 +587,7 @@ async function showHistory(productId) {
     if (history) {
       history.innerHTML = `
         <div class="inventory-empty">
-          Erro ao carregar histórico: ${escapeHTML(error.message)}
+          Erro ao carregar histórico: ${escapeHTML(translateErrorMessage(error.message))}
         </div>`;
     }
   }

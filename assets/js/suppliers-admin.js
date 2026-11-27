@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.js";
+import { translateErrorMessage } from "./error-translations.js";
 
 let content;
 let notify;
@@ -336,7 +337,7 @@ export function mountSuppliersAdmin({ content: target, notify: showNotify }) {
     content.innerHTML = `
       <section class="suppliers-panel">
         <h3>Não foi possível carregar os fornecedores</h3>
-        <p class="suppliers-muted">${escapeHTML(error.message || "Verifique sua conexão e as permissões no Supabase.")}</p>
+        <p class="suppliers-muted">${escapeHTML(translateErrorMessage(error.message, "Verifique sua conexão e as permissões no Supabase."))}</p>
         <button class="suppliers-btn suppliers-secondary" data-action="retry">Tentar novamente</button>
       </section>
     `;

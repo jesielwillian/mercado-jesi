@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.js";
+import { translateErrorMessage } from "./error-translations.js";
 
 let content;
 let notify;
@@ -917,7 +918,7 @@ export async function mountPosAdmin(options = {}) {
     console.error(error);
     content.querySelector("#pos-main").innerHTML = `
       <div class="pos-panel pos-empty">
-        Não foi possível carregar o PDV: ${escapeHTML(error.message)}
+        Não foi possível carregar o PDV: ${escapeHTML(translateErrorMessage(error.message))}
       </div>
     `;
     notify("Erro ao carregar a frente de caixa.");

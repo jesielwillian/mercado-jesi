@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.js";
+import { translateErrorMessage } from "./error-translations.js";
 
 let content;
 let notify;
@@ -345,7 +346,7 @@ export function mountCustomersAdmin({ content: target, notify: showNotify }) {
     content.innerHTML = `
       <section class="customers-panel">
         <h3>Não foi possível carregar os clientes</h3>
-        <p class="customers-muted">${escapeHTML(error.message || "Verifique sua conexão e as permissões no Supabase.")}</p>
+        <p class="customers-muted">${escapeHTML(translateErrorMessage(error.message, "Verifique sua conexão e as permissões no Supabase."))}</p>
         <button class="customers-btn customers-secondary" data-action="retry">Tentar novamente</button>
       </section>
     `;

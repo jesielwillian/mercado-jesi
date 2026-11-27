@@ -1,5 +1,6 @@
 
 import { supabase } from "./supabase.js";
+import { translateErrorMessage } from "./error-translations.js";
 
 const money = (v) => Number(v || 0).toLocaleString("pt-BR", {
   style: "currency", currency: "BRL"
@@ -57,7 +58,7 @@ function setup(content, title, notify) {
 
 function errorView(root, error, retry) {
   console.error(error);
-  root.innerHTML = `<div class="ba-panel"><h3>Não foi possível carregar os dados</h3><p class="ba-note">${esc(error?.message || "Verifique a conexão e as permissões no Supabase.")}</p><button class="ba-btn secondary" data-action="retry">Tentar novamente</button></div>`;
+  root.innerHTML = `<div class="ba-panel"><h3>Não foi possível carregar os dados</h3><p class="ba-note">${esc(translateErrorMessage(error?.message, "Verifique sua conexão e as permissões no Supabase."))}</p><button class="ba-btn secondary" data-action="retry">Tentar novamente</button></div>`;
   root.querySelector('[data-action="retry"]')?.addEventListener("click", retry);
 }
 
@@ -353,6 +354,21 @@ export function mountReportsAdmin({content, notify}) {
     }
     const total=list.reduce((s,o)=>s+Number(o.total||0),0);
     const completed=list.filter(o=>o.status==="completed").length;
+    const reportStatusLabels={
+      pending:"Pendente",
+      confirmed:"Confirmado",
+      preparing:"Em preparação",
+      ready:"Pronto para retirada",
+      out_for_delivery:"Saiu para entrega",
+      completed:"Concluído",
+      cancelled:"Cancelado",
+      failed:"Falhou",
+      paid:"Pago",
+      refunded:"Estornado",
+      processing:"Em processamento",
+      shipped:"Enviado",
+      delivered:"Entregue"
+    };
     const counts={};
     for(const item of products){
       const key=item.product_name||"Produto";
@@ -377,7 +393,7 @@ export function mountReportsAdmin({content, notify}) {
         ${table(["Produto","Quantidade"],best.map(([name,qty])=>`<tr><td>${esc(name)}</td><td>${qty}</td></tr>`).join(""))}
       </section>
       <section class="ba-panel"><h3>Pedidos recentes do período</h3>
-        ${table(["Pedido","Cliente","Data","Status","Total"],list.slice(0,100).map(o=>`<tr><td>#${o.order_number}</td><td>${esc(o.customer_name)}</td><td>${date(o.created_at)}</td><td>${esc(o.status)}</td><td>${money(o.total)}</td></tr>`).join(""))}
+        ${table(["Pedido","Cliente","Data","Status","Total"],list.slice(0,100).map(o=>`<tr><td>#${o.order_number}</td><td>${esc(o.customer_name)}</td><td>${date(o.created_at)}</td><td>${esc(reportStatusLabels[o.status]||"Não identificado")}</td><td>${money(o.total)}</td></tr>`).join(""))}
       </section>
       <section class="ba-panel"><h3>Estoque no limite ou abaixo do mínimo</h3>
         ${table(["Produto","SKU","Saldo","Mínimo"],low.map(x=>`<tr><td>${esc(x.products?.name||"Produto")}</td><td>${esc(x.products?.sku||"—")}</td><td>${x.quantity}</td><td>${x.minimum_quantity}</td></tr>`).join(""))}

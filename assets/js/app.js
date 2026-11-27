@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from "./supabase.js";
 import { localProductsList, cleanLocalImageUrl, cleanRemoteImageUrl } from "./product-store.js";
 import { formatBrazilPhone } from "./phone-mask.js";
+import { translateErrorMessage } from "./error-translations.js";
 const grid=document.querySelector("#product-grid"),count=document.querySelector("#result-count"),cartCount=document.querySelector("#cart-count");
 const searchForm=document.querySelector("#search-form"),searchInput=document.querySelector("#search-input"),toast=document.querySelector("#toast");
 const drawer=document.querySelector("#cart-drawer"),backdrop=document.querySelector("#drawer-backdrop"),cartItems=document.querySelector("#cart-items");
@@ -133,7 +134,7 @@ function openCheckout(){
       if(data.checkout_url){window.location.assign(data.checkout_url);return;}
       cart=[];renderCart();closeCart();root.remove();
       notify(`Pedido #${data.order_number} registrado! Pagamento presencial no recebimento.`);
-    }catch(err){errorEl.textContent=err.message||"Não foi possível registrar o pedido.";button.disabled=false;button.textContent="Tentar novamente";}
+    }catch(err){errorEl.textContent=translateErrorMessage(err.message,"Não foi possível registrar o pedido.");button.disabled=false;button.textContent="Tentar novamente";}
   });
 }
 function showCheckoutReturn(){

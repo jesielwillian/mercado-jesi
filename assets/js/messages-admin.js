@@ -1,5 +1,6 @@
 import { supabase } from "./supabase.js";
 import { listLocalMessages, updateLocalMessage, deleteLocalMessage } from "./contact-store.js";
+import { translateErrorMessage } from "./error-translations.js";
 
 const content = document.querySelector("#page-content");
 const escapeHTML = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[char]));
@@ -31,7 +32,7 @@ async function loadMessages() {
     render();
   } catch (error) {
     console.error(error);
-    content.innerHTML = `<article class="panel messages-empty"><b>Não foi possível carregar as mensagens.</b><p>${escapeHTML(error.message || "Verifique a configuração do Supabase e as políticas de acesso.")}</p><button class="secondary-button" id="retry-messages">Tentar novamente</button></article>`;
+    content.innerHTML = `<article class="panel messages-empty"><b>Não foi possível carregar as mensagens.</b><p>${escapeHTML(translateErrorMessage(error.message, "Verifique a configuração do Supabase e as políticas de acesso."))}</p><button class="secondary-button" id="retry-messages">Tentar novamente</button></article>`;
     content.querySelector("#retry-messages").addEventListener("click", loadMessages);
   }
 }
