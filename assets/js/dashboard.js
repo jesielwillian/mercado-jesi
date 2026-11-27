@@ -271,14 +271,6 @@ async function loadOverview() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const [
-    recentOrdersResult,
-    ordersCountResult,
-    pendingOrdersResult,
-    productsResult,
-    inventoryResult,
-    todaySalesResult,
-  ] = await Promise.all([
     supabase
       .from("orders")
       .select(
@@ -287,11 +279,6 @@ async function loadOverview() {
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(5),
-
-    supabase
-      .from("orders")
-      .select("id", { count: "exact", head: true })
-      .is("deleted_at", null),
 
     supabase
       .from("orders")
@@ -352,8 +339,8 @@ async function loadOverview() {
 
   const ordersNavCount = document.querySelector("#orders-nav-count");
 
-  if (!pendingOrdersResult.error && ordersNavCount) {
-    const totalOrders = Number(pendingOrdersResult.count ?? 0);
+  if (!ordersCountResult.error && ordersNavCount) {
+    const totalOrders = Number(ordersCountResult.count ?? 0);
 
     ordersNavCount.textContent = String(totalOrders);
     ordersNavCount.hidden = totalOrders === 0;
