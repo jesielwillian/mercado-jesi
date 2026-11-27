@@ -1,25 +1,34 @@
 import { supabase } from "./supabase.js";
 
-const escapeHTML = value =>
-  String(value ?? "").replace(/[&<>"']/g, char => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-  }[char]));
+const escapeHTML = (value) =>
+  String(value ?? "").replace(
+    /[&<>"']/g,
+    (char) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[char],
+  );
 
-const number = value =>
+const number = (value) =>
   Number(value || 0).toLocaleString("pt-BR", {
     minimumFractionDigits: 0,
-    maximumFractionDigits: 3
+    maximumFractionDigits: 3,
   });
 
-const money = value =>
+const money = (value) =>
   new Intl.NumberFormat("pt-BR", {
     style: "currency",
-    currency: "BRL"
+    currency: "BRL",
   }).format(Number(value || 0));
 
-const translateInventoryError = message => {
+const translateInventoryError = (message) => {
   const text = String(message || "");
-  if (/inventory is not defined/i.test(text)) return "Estoque não está definido. Atualize a página; se persistir, aplique a migration de movimentação de estoque no Supabase.";
+  if (/inventory is not defined/i.test(text))
+    return "Estoque não está definido. Atualize a página; se persistir, aplique a migration de movimentação de estoque no Supabase.";
   return text;
 };
 
@@ -28,7 +37,7 @@ const movementLabels = {
   out: "Saída",
   adjustment: "Ajuste",
   sale: "Venda",
-  return: "Devolução"
+  return: "Devolução",
 };
 
 let content;
@@ -44,23 +53,22 @@ function getStock(product) {
 
   return {
     quantity: Number(inventory?.quantity || 0),
-    minimum: Number(inventory?.minimum_quantity || 0)
+    minimum: Number(inventory?.minimum_quantity || 0),
   };
 }
 
 function render() {
-  const query = (
-    content.querySelector("#inventory-search")?.value || ""
-  ).trim().toLocaleLowerCase("pt-BR");
+  const query = (content.querySelector("#inventory-search")?.value || "")
+    .trim()
+    .toLocaleLowerCase("pt-BR");
 
   const filter = content.querySelector("#inventory-filter")?.value || "all";
 
-  const filtered = products.filter(product => {
+  const filtered = products.filter((product) => {
     const stock = getStock(product);
-    const matchesQuery =
-      `${product.name} ${product.sku || ""}`
-        .toLocaleLowerCase("pt-BR")
-        .includes(query);
+    const matchesQuery = `${product.name} ${product.sku || ""}`
+      .toLocaleLowerCase("pt-BR")
+      .includes(query);
 
     const matchesFilter =
       filter === "all" ||
@@ -72,14 +80,14 @@ function render() {
   });
 
   const total = products.length;
-  const low = products.filter(product => {
+  const low = products.filter((product) => {
     const stock = getStock(product);
     return stock.quantity <= stock.minimum;
   }).length;
 
   const units = products.reduce(
     (sum, product) => sum + getStock(product).quantity,
-    0
+    0,
   );
 
   content.querySelector("#inventory-products-count").textContent = total;
@@ -91,21 +99,27 @@ function render() {
   if (!filtered.length) {
     table.innerHTML = `
       <tr><td colspan="6" class="inventory-empty">
-        ${query || filter !== "all"
-          ? "Nenhum produto encontrado para esse filtro."
-          : "Nenhum produto cadastrado."}
+        ${
+          query || filter !== "all"
+            ? "Nenhum produto encontrado para esse filtro."
+            : "Nenhum produto cadastrado."
+        }
       </td></tr>`;
     return;
   }
 
-  table.innerHTML = filtered.map(product => {
-    const stock = getStock(product);
-    const isLow = stock.quantity <= stock.minimum;
-    const status = stock.quantity === 0
-      ? "Sem estoque"
-      : isLow ? "Estoque baixo" : "Disponível";
+  table.innerHTML = filtered
+    .map((product) => {
+      const stock = getStock(product);
+      const isLow = stock.quantity <= stock.minimum;
+      const status =
+        stock.quantity === 0
+          ? "Sem estoque"
+          : isLow
+            ? "Estoque baixo"
+            : "Disponível";
 
-    return `
+      return `
       <tr>
         <td>
           <div class="inventory-product">
@@ -137,7 +151,8 @@ function render() {
           </div>
         </td>
       </tr>`;
-  }).join("");
+    })
+    .join("");
 }
 
 function renderPage() {
@@ -347,52 +362,105 @@ function renderPage() {
 
   content.querySelector("#inventory-search").addEventListener("input", render);
   content.querySelector("#inventory-filter").addEventListener("change", render);
-  content.querySelector("#inventory-refresh").addEventListener("click", loadInventory);
-  content.querySelector("#inventory-new-movement").addEventListener("click", () => openMovement());
-  content.querySelector("#inventory-table-body").addEventListener("click", handleTableAction);
+  content
+    .querySelector("#inventory-refresh")
+    .addEventListener("click", loadInventory);
+  content
+    .querySelector("#inventory-new-movement")
+    .addEventListener("click", () => openMovement());
+  content
+    .querySelector("#inventory-table-body")
+    .addEventListener("click", handleTableAction);
 }
 
 async function loadInventory() {
   const table = content.querySelector("#inventory-table-body");
+
   table.innerHTML = `
-    <tr><td colspan="6" class="inventory-empty">Carregando estoque...</td></tr>`;
+    <tr>
+      <td colspan="6" class="inventory-empty">
+        Carregando estoque...
+      </td>
+    </tr>`;
 
   try {
-    if (!supabase) throw new Error("Supabase não está configurado.");
+    if (!supabase) {
+      throw new Error("Supabase não está configurado.");
+    }
 
     const { data, error } = await supabase
       .from("products")
-      .select(`
-        id,name,sku,unit,price,cost_price,active,
-        inventory(quantity,minimum_quantity)
-      `)
+      .select(
+        `
+        id,
+        name,
+        sku,
+        unit,
+        price,
+        cost_price,
+        active,
+        inventory (
+          quantity,
+          minimum_quantity
+        )
+      `,
+      )
+      .eq("active", true)
       .order("name");
 
-    if (error) throw error;
+    if (error) {
+      console.error("[ESTOQUE] Erro Supabase:", error);
+      throw error;
+    }
 
-    products = data || [];
+    console.log("[ESTOQUE] Produtos recebidos:", data);
+    console.log("[ESTOQUE] Total recebido:", data?.length ?? 0);
+
+    products = (data || []).map((product) => ({
+      ...product,
+      inventory: Array.isArray(product.inventory)
+        ? product.inventory[0] || null
+        : product.inventory || null,
+    }));
+
     render();
+
+    console.log(
+      "[ESTOQUE] Total de unidades:",
+      products.reduce((sum, product) => sum + getStock(product).quantity, 0),
+    );
   } catch (error) {
-    console.error("Erro ao carregar estoque:", error);
+    console.error("[ESTOQUE] Falha ao carregar:", error);
+
+    products = [];
+
     table.innerHTML = `
-      <tr><td colspan="6" class="inventory-empty">
-        Não foi possível carregar o estoque: ${escapeHTML(error.message)}
-      </td></tr>`;
-    notify(`Erro ao carregar estoque: ${translateInventoryError(error.message)}`);
+      <tr>
+        <td colspan="6" class="inventory-empty">
+          Não foi possível carregar o estoque:
+          ${escapeHTML(error.message)}
+        </td>
+      </tr>`;
+
+    notify(
+      `Erro ao carregar estoque: ${translateInventoryError(error.message)}`,
+    );
   }
 }
 
 function openMovement(productId = "") {
-  const product = products.find(item => item.id === productId);
+  const product = products.find((item) => item.id === productId);
   selectedProduct = product || null;
 
-  const options = products.map(item => {
-    const stock = getStock(item);
-    return `
+  const options = products
+    .map((item) => {
+      const stock = getStock(item);
+      return `
       <option value="${escapeHTML(item.id)}" ${item.id === productId ? "selected" : ""}>
         ${escapeHTML(item.name)} — saldo: ${number(stock.quantity)}
       </option>`;
-  }).join("");
+    })
+    .join("");
 
   content.querySelector("#inventory-modal-root").innerHTML = `
     <div class="inventory-modal-backdrop" data-close-modal>
@@ -446,23 +514,29 @@ function openMovement(productId = "") {
 
   const root = content.querySelector("#inventory-modal-root");
 
-  root.querySelector("#movement-product").addEventListener("change", event => {
-    selectedProduct = products.find(item => item.id === event.target.value) || null;
-  });
+  root
+    .querySelector("#movement-product")
+    .addEventListener("change", (event) => {
+      selectedProduct =
+        products.find((item) => item.id === event.target.value) || null;
+    });
 
-  root.querySelector("#movement-type").addEventListener("change", event => {
+  root.querySelector("#movement-type").addEventListener("change", (event) => {
     const adjustment = event.target.value === "adjustment";
-    root.querySelector("#movement-quantity-label").textContent =
-      adjustment ? "Novo saldo final" : "Quantidade";
-    root.querySelector("#movement-quantity").placeholder =
-      adjustment ? "Informe o saldo final" : "0,000";
-    root.querySelector("#movement-quantity").min =
-      adjustment ? "0" : "0.001";
+    root.querySelector("#movement-quantity-label").textContent = adjustment
+      ? "Novo saldo final"
+      : "Quantidade";
+    root.querySelector("#movement-quantity").placeholder = adjustment
+      ? "Informe o saldo final"
+      : "0,000";
+    root.querySelector("#movement-quantity").min = adjustment ? "0" : "0.001";
   });
 
-  root.querySelector("#inventory-movement-form").addEventListener("submit", saveMovement);
+  root
+    .querySelector("#inventory-movement-form")
+    .addEventListener("submit", saveMovement);
 
-  root.addEventListener("click", event => {
+  root.addEventListener("click", (event) => {
     if (event.target.matches("[data-close-modal]")) closeModal();
   });
 }
@@ -488,13 +562,19 @@ async function saveMovement(event) {
     return;
   }
 
-  if (!Number.isFinite(quantity) || quantity < 0 || (type !== "adjustment" && quantity <= 0)) {
+  if (
+    !Number.isFinite(quantity) ||
+    quantity < 0 ||
+    (type !== "adjustment" && quantity <= 0)
+  ) {
     notify("Informe uma quantidade válida.");
     return;
   }
 
   if (type === "adjustment" && quantity === 0) {
-    notify("O saldo final precisa ser maior que zero. Para zerar, registre uma saída.");
+    notify(
+      "O saldo final precisa ser maior que zero. Para zerar, registre uma saída.",
+    );
     return;
   }
 
@@ -507,7 +587,7 @@ async function saveMovement(event) {
       p_movement_type: type,
       p_quantity: quantity,
       p_unit_cost: costValue === "" ? null : Number(costValue),
-      p_notes: notes || null
+      p_notes: notes || null,
     });
 
     if (error) throw error;
@@ -517,14 +597,17 @@ async function saveMovement(event) {
     await loadInventory();
   } catch (error) {
     console.error("Erro ao movimentar estoque:", error);
-    notify(translateInventoryError(error.message) || "Não foi possível registrar a movimentação.");
+    notify(
+      translateInventoryError(error.message) ||
+        "Não foi possível registrar a movimentação.",
+    );
     button.disabled = false;
     button.textContent = "Salvar movimentação";
   }
 }
 
 async function showHistory(productId) {
-  const product = products.find(item => item.id === productId);
+  const product = products.find((item) => item.id === productId);
   if (!product) return;
 
   const root = content.querySelector("#inventory-modal-root");
@@ -540,7 +623,7 @@ async function showHistory(productId) {
       </section>
     </div>`;
 
-  root.addEventListener("click", event => {
+  root.addEventListener("click", (event) => {
     if (event.target.matches("[data-close-modal]")) closeModal();
   });
 
@@ -562,12 +645,13 @@ async function showHistory(productId) {
       return;
     }
 
-    history.innerHTML = data.map(item => {
-      const date = new Date(item.created_at).toLocaleString("pt-BR");
-      const positive = ["in", "return"].includes(item.movement_type);
-      const label = movementLabels[item.movement_type] || item.movement_type;
+    history.innerHTML = data
+      .map((item) => {
+        const date = new Date(item.created_at).toLocaleString("pt-BR");
+        const positive = ["in", "return"].includes(item.movement_type);
+        const label = movementLabels[item.movement_type] || item.movement_type;
 
-      return `
+        return `
         <div class="inventory-history-item">
           <span>
             <b>${escapeHTML(label)}</b>
@@ -579,7 +663,8 @@ async function showHistory(productId) {
             ${number(item.quantity)}
           </span>
         </div>`;
-    }).join("");
+      })
+      .join("");
   } catch (error) {
     console.error("Erro ao carregar histórico:", error);
     const history = root.querySelector("#inventory-history-content");
@@ -602,7 +687,7 @@ function handleTableAction(event) {
 
 export async function mountInventoryAdmin(options = {}) {
   content = options.content || document.querySelector("#page-content");
-  notify = options.notify || (message => console.log(message));
+  notify = options.notify || ((message) => console.log(message));
 
   if (!content) return;
 
