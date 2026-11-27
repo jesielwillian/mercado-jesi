@@ -138,8 +138,20 @@ function addStyles() {
     .orders-actions .orders-delete-btn:hover {
       background:#feecec; border-color:#e9aaaa; transform:translateY(-1px);
     }
-    .orders-actions .orders-delete-btn:disabled {
+    .orders-actions .orders-delete-btn:disabled,
+    .orders-actions .orders-archive-btn:disabled {
       opacity:.55; cursor:wait; transform:none;
+    }
+    .orders-actions .orders-archive-btn {
+      display:inline-flex; align-items:center; justify-content:center;
+      gap:7px; min-height:34px; padding:7px 11px;
+      border:1px solid #d8e4f4; border-radius:8px;
+      background:#f3f7fd; color:#2455a5;
+      font-size:.78rem; font-weight:800;
+      transition:background .18s ease, border-color .18s ease, transform .18s ease;
+    }
+    .orders-actions .orders-archive-btn:hover {
+      background:#e8f0fc; border-color:#b9cceb; transform:translateY(-1px);
     }
     .orders-empty {
       padding:30px 12px !important;
@@ -277,15 +289,23 @@ function render() {
             <button type="button" data-order-details="${escapeHTML(order.id)}">
               Detalhes
             </button>
-            ${selectedView !== "deleted" ? `
-              <button type="button" class="orders-delete-btn"
-                data-order-delete="${escapeHTML(order.id)}"
-                aria-label="Excluir pedido #${escapeHTML(order.order_number)}"
-                title="Excluir pedido permanentemente">
-                <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
-                Excluir
-              </button>
-            ` : ""}
+            ${selectedView === "active" ? (
+              ((order.payments || []).length || (order.cash_transactions || []).length)
+                ? `<button type="button" class="orders-archive-btn"
+                    data-order-archive="${escapeHTML(order.id)}"
+                    aria-label="Arquivar pedido #${escapeHTML(order.order_number)}"
+                    title="Arquivar e preservar o histórico financeiro">
+                    <i class="fa-solid fa-box-archive" aria-hidden="true"></i>
+                    Arquivar
+                  </button>`
+                : `<button type="button" class="orders-delete-btn"
+                    data-order-delete="${escapeHTML(order.id)}"
+                    aria-label="Excluir pedido #${escapeHTML(order.order_number)}"
+                    title="Excluir pedido permanentemente">
+                    <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+                    Excluir
+                  </button>`
+            ) : ""}
           </td>
         </tr>
       `).join("")
@@ -463,7 +483,8 @@ async function loadOrders() {
           unit_price,
           line_total
         ),
-        payments (method,status,payment_channel,provider)
+        payments (method,status,payment_channel,provider),
+        cash_transactions (id)
       `)
       .order("created_at", { ascending: false })
       .limit(200);
@@ -625,6 +646,43 @@ function openDetails(id) {
 }
 
 async function handleTableAction(event) {
+  const archiveButton = event.target.closest("[data-order-archive]");
+  if (archiveButton) {
+    const order = orders.find((item) => item.id === archiveButton.dataset.orderArchive);
+    if (!order) return;
+
+    const confirmed = window.confirm(
+      `Arquivar o pedido #${order.order_number}?\\n\\n` +
+      "O pedido sairá da lista de ativos, mas continuará salvo no banco com todos os pagamentos e registros financeiros."
+    );
+    if (!confirmed) return;
+
+    archiveButton.disabled = true;
+    archiveButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Arquivando...';
+
+    try {
+      const { data, error } = await supabase.rpc(
+        "archive_order_preserving_financial_history",
+        { p_order_id: order.id },
+      );
+      if (error) throw error;
+      if (data?.success !== true) {
+        throw new Error(data?.error || "O banco não confirmou o arquivamento.");
+      }
+
+      order.archived_at = data.archived_at || new Date().toISOString();
+      updateSummary();
+      render();
+      notify(`Pedido #${order.order_number} arquivado. Histórico financeiro preservado.`);
+    } catch (error) {
+      console.error("Erro ao arquivar pedido:", error);
+      archiveButton.disabled = false;
+      archiveButton.innerHTML = '<i class="fa-solid fa-box-archive" aria-hidden="true"></i> Arquivar';
+      notify(error.message || "Não foi possível arquivar o pedido.");
+    }
+    return;
+  }
+
   const deleteButton = event.target.closest("[data-order-delete]");
   if (deleteButton) {
     const order = orders.find((item) => item.id === deleteButton.dataset.orderDelete);

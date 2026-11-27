@@ -152,3 +152,21 @@ Referências oficiais: [Checkout Pro / Preferências](https://www.mercadopago.co
 - A taxa de entrega é fixa por configuração (com opção de frete grátis por valor mínimo); cálculo por bairro/CEP, mapa em tempo real, notificações WhatsApp/SMS e portal público de rastreamento não estão incluídos nesta etapa.
 - A marcação de cartão recebido na entrega atualiza o pagamento no pedido. A conciliação com maquininha/adquirente e o lançamento automático no caixa precisam ser definidos conforme o processo financeiro da loja.
 - Antes de produção, teste estoque concorrente, cupons, falhas de gateway, webhook repetido, cancelamento e permissões de cada perfil.
+
+
+## Exclusão e arquivamento de pedidos
+
+A migration `0017_order_safe_archive.sql` adiciona a RPC
+`archive_order_preserving_financial_history(uuid)`. Aplique as migrations pendentes
+no Supabase antes de publicar a atualização do painel.
+
+Na tela Pedidos:
+- Pedidos sem pagamentos e sem movimentações vinculadas exibem **Excluir**.
+- Pedidos com pagamentos ou movimentações de caixa exibem **Arquivar**.
+- Arquivar atualiza `orders.archived_at` e preserva integralmente pagamentos,
+  referências do provedor e movimentações financeiras.
+- A exclusão definitiva continua protegida pela RPC
+  `delete_order_without_financial_history(uuid)`.
+
+Atenção: arquivar um pedido não cancela uma cobrança ainda pendente no Mercado Pago.
+A situação da cobrança deve continuar sendo acompanhada pelo webhook/provedor.
