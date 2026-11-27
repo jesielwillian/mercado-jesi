@@ -365,7 +365,7 @@ export function mountFinanceAdmin({content, notify}) {
             <option value="Marketing">Marketing</option>
             <option value="Outros">Outros</option>
           </select></label>
-          ${field("Valor (R$)","amount","","number",'required min="0.01" step="0.01"')}
+          ${field("Valor (R$)","amount","","text",'required inputmode="decimal" data-currency-mask="true" placeholder="Ex.: 45,90" autocomplete="off"')}
           ${field("Vencimento","due_date","","date")}
           <div class="ba-actions wide"><button class="ba-btn" type="submit">Cadastrar despesa</button></div>
         </form>
@@ -381,10 +381,30 @@ export function mountFinanceAdmin({content, notify}) {
     root.querySelector('[data-form="expense"]').addEventListener("submit",async e=>{
       e.preventDefault();
       const v = new FormData(e.currentTarget);
-      const amount = Number(v.get("amount"));
+      // O campo permanece mascarado em pt-BR na tela; convertemos somente
+      // o valor recebido pelo formulário para número antes de enviar ao Supabase.
+      const rawAmount = String(v.get("amount") || "").trim();
+      const amount = (() => {
+        let normalized = rawAmount.replace(/R\$|\s/gi, "").replace(/[^\d.,-]/g, "");
+        if (!normalized) return NaN;
+
+        const comma = normalized.lastIndexOf(",");
+        const dot = normalized.lastIndexOf(".");
+        if (comma >= 0) {
+          // Formato brasileiro: 1.250,50
+          normalized = normalized.replace(/\./g, "").replace(",", ".");
+        } else if (dot >= 0) {
+          // Aceita decimal normalizado (1250.50) e milhar (1.250).
+          const decimals = normalized.length - dot - 1;
+          if (decimals === 3) normalized = normalized.replace(/\./g, "");
+        }
+        return Number(normalized);
+      })();
       const description = String(v.get("description")||"").trim();
       const category = String(v.get("category")||"").trim();
-      if (!description || !category || !Number.isFinite(amount) || amount<=0) return notify("Informe descrição, categoria e valor válidos.");
+      if (!description || !category || !Number.isFinite(amount) || amount<=0) {
+        return notify("Preencha a descrição, selecione uma categoria e informe um valor maior que zero (ex.: 45,90).");
+      }
       const {data:{user}} = await supabase.auth.getUser();
       const {error} = await supabase.from("expenses").insert({
         description, category,
