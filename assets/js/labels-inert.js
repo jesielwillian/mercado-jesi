@@ -25,6 +25,14 @@
 
     if (!label) return;
 
+    // Cliques nos próprios controles devem continuar funcionando, inclusive
+    // no botão que substitui visualmente os selects administrativos.
+    const interactive = event.target.closest(
+      'input, select, textarea, button, a, [role="button"], [role="option"], .admin-select, .admin-select-menu'
+    );
+    if (interactive) return;
+
+    // Impede somente o clique no texto do label de ativar o campo associado.
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
