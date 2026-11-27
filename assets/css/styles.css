@@ -1190,7 +1190,7 @@ html {
     overflow: auto;
     background: #fff;
     color: #183326;
-    border-radius: 20px 0 0 20px;
+    border-radius: 20px;
     padding: 24px;
     box-shadow: 0 24px 80px rgba(0, 0, 0, .28)
 }
@@ -1591,29 +1591,15 @@ body>.home-select-menu>.home-select-option:disabled {
         transition: none;
     }
 }
-
 /* ===== Botões animados — loja principal (não afeta o painel admin) ===== */
 @keyframes jesi-button-shine {
-    0% {
-        transform: translateX(-140%) skewX(-18deg);
-    }
-
-    55%,
-    100% {
-        transform: translateX(240%) skewX(-18deg);
-    }
+    0% { transform: translateX(-140%) skewX(-18deg); }
+    55%, 100% { transform: translateX(240%) skewX(-18deg); }
 }
 
 @keyframes jesi-category-float {
-
-    0%,
-    100% {
-        transform: translateY(0);
-    }
-
-    50% {
-        transform: translateY(-3px);
-    }
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
 }
 
 .primary-button,
@@ -1634,7 +1620,7 @@ body>.home-select-menu>.home-select-option:disabled {
 .search button,
 .back-to-top {
     overflow: hidden;
-    transition: transform .24s cubic-bezier(.2, .8, .2, 1), box-shadow .24s ease,
+    transition: transform .24s cubic-bezier(.2,.8,.2,1), box-shadow .24s ease,
         background-color .24s ease, color .24s ease, border-color .24s ease;
 }
 
@@ -1650,15 +1636,15 @@ body>.home-select-menu>.home-select-option:disabled {
     left: 0;
     width: 42%;
     height: 170%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .34), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.34), transparent);
     transform: translateX(-140%) skewX(-18deg);
     pointer-events: none;
 }
 
 .primary-button {
-    border: 1px solid rgba(255, 255, 255, .16);
+    border: 1px solid rgba(255,255,255,.16);
     background: linear-gradient(135deg, #218653 0%, #176b43 55%, #104d31 100%);
-    box-shadow: 0 9px 22px rgba(23, 107, 67, .2), inset 0 1px 0 rgba(255, 255, 255, .18);
+    box-shadow: 0 9px 22px rgba(23,107,67,.2), inset 0 1px 0 rgba(255,255,255,.18);
     cursor: pointer;
 }
 
@@ -1680,7 +1666,7 @@ body>.home-select-menu>.home-select-option:disabled {
 
 .primary-button:hover {
     background: linear-gradient(135deg, #26965e, #176b43 58%, #0d432a);
-    box-shadow: 0 14px 28px rgba(23, 107, 67, .27), inset 0 1px 0 rgba(255, 255, 255, .2);
+    box-shadow: 0 14px 28px rgba(23,107,67,.27), inset 0 1px 0 rgba(255,255,255,.2);
 }
 
 .primary-button:active,
@@ -1694,14 +1680,14 @@ body>.home-select-menu>.home-select-option:disabled {
 }
 
 .cart-button {
-    border: 1px solid rgba(16, 77, 49, .08);
+    border: 1px solid rgba(16,77,49,.08);
     background: linear-gradient(135deg, #ffe979, #f4d64e);
-    box-shadow: 0 7px 18px rgba(184, 151, 24, .18), inset 0 1px 0 rgba(255, 255, 255, .55);
+    box-shadow: 0 7px 18px rgba(184,151,24,.18), inset 0 1px 0 rgba(255,255,255,.55);
 }
 
 .cart-button:hover {
     background: linear-gradient(135deg, #ffed91, #f2ce35);
-    box-shadow: 0 12px 24px rgba(184, 151, 24, .25);
+    box-shadow: 0 12px 24px rgba(184,151,24,.25);
 }
 
 .cart-button span {
@@ -1716,15 +1702,15 @@ body>.home-select-menu>.home-select-option:disabled {
 }
 
 .add-button {
-    border: 1px solid rgba(23, 107, 67, .1);
+    border: 1px solid rgba(23,107,67,.1);
     background: linear-gradient(135deg, #eff8f1, #e2f1e6);
-    box-shadow: 0 4px 12px rgba(23, 107, 67, .08);
+    box-shadow: 0 4px 12px rgba(23,107,67,.08);
 }
 
 .add-button:hover {
     background: linear-gradient(135deg, #218653, #176b43);
     color: #fff;
-    box-shadow: 0 9px 18px rgba(23, 107, 67, .2);
+    box-shadow: 0 9px 18px rgba(23,107,67,.2);
 }
 
 .add-button-plus {
@@ -1732,7 +1718,7 @@ body>.home-select-menu>.home-select-option:disabled {
     margin-left: 2px;
     transform: rotate(0deg);
     transform-origin: 50% 50%;
-    transition: transform .7s cubic-bezier(.2, .75, .25, 1);
+    transition: transform .7s cubic-bezier(.2,.75,.25,1);
 }
 
 .add-button:hover .add-button-plus,
@@ -1755,14 +1741,14 @@ body>.home-select-menu>.home-select-option:disabled {
 }
 
 .search button:hover {
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2), 0 5px 14px rgba(16, 77, 49, .2);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.2), 0 5px 14px rgba(16,77,49,.2);
 }
 
 .category-card {
     overflow: hidden;
     border: 1px solid #e5ece5;
-    box-shadow: 0 5px 16px rgba(23, 65, 40, .035);
-    transition: transform .25s cubic-bezier(.2, .8, .2, 1), border-color .25s ease,
+    box-shadow: 0 5px 16px rgba(23,65,40,.035);
+    transition: transform .25s cubic-bezier(.2,.8,.2,1), border-color .25s ease,
         box-shadow .25s ease, background-color .25s ease;
 }
 
@@ -1779,9 +1765,9 @@ body>.home-select-menu>.home-select-option:disabled {
 
 .category-card:hover,
 .category-card.active {
-    border-color: rgba(23, 107, 67, .42);
+    border-color: rgba(23,107,67,.42);
     background: linear-gradient(145deg, #fff, #f4faf4);
-    box-shadow: 0 13px 28px rgba(23, 107, 67, .12);
+    box-shadow: 0 13px 28px rgba(23,107,67,.12);
 }
 
 .category-card:hover span,
@@ -1798,7 +1784,7 @@ body>.home-select-menu>.home-select-option:disabled {
 .search button:focus-visible,
 .back-to-top:focus-visible,
 .cart-head button:focus-visible {
-    outline: 3px solid rgba(244, 214, 78, .8);
+    outline: 3px solid rgba(244,214,78,.8);
     outline-offset: 3px;
 }
 
@@ -1814,11 +1800,10 @@ body>.home-select-menu>.home-select-option:disabled {
 
 .back-to-top:hover {
     background: linear-gradient(135deg, #218653, #104d31);
-    box-shadow: 0 13px 28px rgba(15, 67, 43, .3);
+    box-shadow: 0 13px 28px rgba(15,67,43,.3);
 }
 
 @media (prefers-reduced-motion: reduce) {
-
     .primary-button,
     .cart-button,
     .add-button,
@@ -1984,7 +1969,6 @@ body>.home-select-menu>.home-select-option:disabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
-
     .product-card,
     .product-image,
     .product-image img,
@@ -1996,4 +1980,10 @@ body>.home-select-menu>.home-select-option:disabled {
     .add-button:focus-visible .add-button-plus {
         transform: none;
     }
+}
+
+/* Modais com rolagem vertical: cantos esquerdos arredondados */
+.cart-drawer,
+.checkout-modal {
+    border-radius: 20px 0 0 20px !important;
 }
