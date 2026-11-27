@@ -2110,7 +2110,8 @@ body>.home-select-menu>.home-select-option:disabled {
     }
 }
 
-\n/* Posicionamento fixo e inequívoco do botão voltar ao topo */
+
+/* Posicionamento fixo e inequívoco do botão voltar ao topo */
 #back-to-top.back-to-top {
     position: fixed !important;
     inset-inline-start: auto !important;
@@ -2133,5 +2134,28 @@ body>.home-select-menu>.home-select-option:disabled {
         inset-inline-end: 16px !important;
         right: 16px !important;
         bottom: 16px !important;
+    }
+}
+
+
+/* Correção definitiva: o botão flutuante permanece preso à janela,
+   mesmo com as regras compartilhadas de animação dos demais botões. */
+html body #back-to-top.back-to-top {
+    position: fixed !important;
+    inset: auto 24px 24px auto !important;
+    z-index: 1000 !important;
+    width: 46px !important;
+    min-width: 46px !important;
+    max-width: 46px !important;
+    height: 46px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+}
+
+@media (max-width: 560px) {
+    html body #back-to-top.back-to-top {
+        inset: auto 16px 16px auto !important;
     }
 }

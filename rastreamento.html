@@ -13,31 +13,183 @@
     crossorigin="anonymous" referrerpolicy="no-referrer">
   <link rel="stylesheet" href="assets/css/styles.css">
   <style>
-    .track-page{min-height:100vh;padding:clamp(24px,6vw,64px) 20px;background:var(--bg);display:flex;align-items:center;justify-content:center}
-    .track-wrap{width:min(660px,100%);margin:auto}
-    .track-back{display:inline-flex;align-items:center;gap:9px;margin:0 0 22px;color:var(--green-dark);font-size:13px;font-weight:800;text-decoration:none}
-    .track-back:hover{color:var(--green)}
-    .track-card{padding:clamp(24px,4vw,38px);background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
-    .track-head .eyebrow{display:inline-block;margin-bottom:9px}
-    .track-head h1{margin:0;color:var(--ink);font-size:clamp(26px,4vw,34px);line-height:1.2;font-weight:800;letter-spacing:-.035em}
-    .track-head p{margin:12px 0 0;color:var(--muted);font-size:15px;line-height:1.65}
-    .track-form{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:28px 0 0}
-    .track-form label{display:grid;gap:7px;color:var(--ink);font-size:13px;font-weight:700}
-    .track-form input{width:100%;min-width:0;min-height:48px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);font:inherit;font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s}
-    .track-form input::placeholder{color:#9aa69d}
-    .track-form input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(23,107,67,.1)}
-    .track-form .wide{grid-column:1/-1}
-    .track-btn{width:100%;min-height:49px;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:2px;padding:0 18px;border:0;border-radius:12px;background:var(--green);color:#fff;font:inherit;font-size:14px;font-weight:800;cursor:pointer;transition:background .2s,transform .2s}
-    .track-btn:hover{background:var(--green-dark);transform:translateY(-1px)}
-    .track-note{display:flex;align-items:flex-start;gap:10px;margin:22px 0 0;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;line-height:1.6}
-    .track-note i{margin-top:3px;color:var(--green)}
-    .track-result{margin-top:22px;padding:18px;border:1px solid var(--line);border-radius:14px;background:#fbfdfb;color:var(--ink)}
-    .track-status{font-size:19px;font-weight:800;color:var(--green-dark);line-height:1.4}
-    .track-timeline{display:grid;gap:10px;margin-top:16px}
-    .track-event{padding:13px 15px;border-left:3px solid var(--green);border-radius:0 10px 10px 0;background:#f3f8f4}
-    .track-event small{display:block;margin-top:4px;color:var(--muted);line-height:1.5}
-    .hidden{display:none}
-    @media(max-width:560px){.track-page{padding:24px 14px;align-items:flex-start}.track-card{padding:22px 18px}.track-form{grid-template-columns:1fr;gap:14px}.track-form .wide{grid-column:auto}.track-head p{font-size:14px}}
+    :root {
+      --track-ink: #1f3026;
+      --track-muted: #7b8980;
+      --track-line: #e5ebe6;
+      --track-green-soft: #eaf4ed;
+    }
+
+    .track-page {
+      min-height: 100vh;
+      padding: clamp(28px, 6vw, 68px) 20px;
+      background: linear-gradient(135deg, #f3f7f3 0%, #f8f9f5 58%, #f1f6f1 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .track-wrap { width: min(620px, 100%); margin: auto; }
+
+    .track-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      margin: 0 0 18px 3px;
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 800;
+      text-decoration: none;
+      transition: color .18s ease, transform .18s ease;
+    }
+    .track-back:hover { color: var(--green-dark); transform: translateX(-2px); }
+
+    .track-card {
+      padding: clamp(24px, 4vw, 34px);
+      background: #fff;
+      border: 1px solid var(--track-line);
+      border-radius: 16px;
+      box-shadow: 0 8px 28px rgba(23, 63, 42, .06);
+    }
+
+    .track-head .eyebrow { display: inline-block; margin-bottom: 9px; font-size: 9px; }
+    .track-head h1 {
+      margin: 0;
+      color: var(--track-ink);
+      font-size: clamp(23px, 4vw, 29px);
+      line-height: 1.2;
+      font-weight: 800;
+      letter-spacing: -.045em;
+    }
+    .track-head p {
+      max-width: 510px;
+      margin: 10px 0 0;
+      color: var(--track-muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .track-form {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin: 25px 0 0;
+    }
+    .track-form label {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      min-width: 0;
+      color: #53645a;
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .track-form input {
+      width: 100%;
+      min-width: 0;
+      min-height: 42px;
+      padding: 10px 11px;
+      border: 1px solid #e1e9e1;
+      border-radius: 8px;
+      background: #fbfdfb;
+      color: var(--track-ink);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      outline: 0;
+      transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+    .track-form input::placeholder { color: #a0aaa3; }
+    .track-form input:hover { border-color: #cbd9ce; }
+    .track-form input:focus {
+      border-color: #70a986;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(23, 107, 67, .07);
+    }
+    .track-form .wide { grid-column: 1 / -1; }
+
+    .track-btn {
+      width: 100%;
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      margin-top: 2px;
+      padding: 0 16px;
+      border: 0;
+      border-radius: 9px;
+      background: #347b59;
+      color: #fff;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: background .18s ease, transform .18s ease, box-shadow .18s ease;
+    }
+    .track-btn:hover { background: #286548; box-shadow: 0 5px 14px rgba(23,107,67,.12); }
+    .track-btn:active { transform: scale(.99); }
+    .track-btn:focus-visible { outline: 3px solid rgba(23,107,67,.16); outline-offset: 2px; }
+    .track-btn:disabled { opacity: .65; cursor: wait; }
+
+    .track-note {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      margin: 20px 0 0;
+      padding: 15px 13px;
+      border: 1px solid #edf1ed;
+      border-radius: 9px;
+      background: #fbfdfb;
+      color: var(--track-muted);
+      font-size: 10px;
+      line-height: 1.6;
+    }
+    .track-note i { margin-top: 2px; color: #5d9672; }
+
+    .track-result {
+      margin-top: 18px;
+      padding: 16px;
+      border: 1px solid var(--track-line);
+      border-radius: 11px;
+      background: #fbfdfb;
+      color: var(--track-ink);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .track-result > p { margin: 8px 0 0; color: var(--track-muted); }
+    .track-status {
+      color: var(--green-dark);
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1.4;
+    }
+    .track-timeline { display: grid; gap: 9px; margin-top: 15px; }
+    .track-event {
+      padding: 11px 13px;
+      border: 1px solid #e9f0ea;
+      border-left: 3px solid #70a986;
+      border-radius: 7px;
+      background: #fff;
+      font-size: 11px;
+    }
+    .track-event strong { color: #34483a; }
+    .track-event small { display: block; margin-top: 3px; color: var(--track-muted); line-height: 1.5; }
+    .track-error { color: #a94438 !important; }
+    .hidden { display: none; }
+
+    @media (max-width: 560px) {
+      .track-page { min-height: 100svh; padding: 24px 14px; align-items: flex-start; }
+      .track-card { padding: 22px 18px; border-radius: 14px; }
+      .track-form { grid-template-columns: 1fr; gap: 13px; margin-top: 21px; }
+      .track-form .wide { grid-column: auto; }
+      .track-head p { font-size: 11px; }
+      .track-note { margin-top: 16px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .track-back, .track-form input, .track-btn { transition: none; }
+    }
   </style>
 </head>
 <body>
@@ -51,9 +203,9 @@
           <p>Consulte as atualizações da sua compra. Informe os dados utilizados no pedido e o código de rastreamento recebido após a finalização.</p>
         </div>
         <form id="track-form" class="track-form">
-          <label>Número do pedido<input name="order_number" inputmode="numeric" required placeholder="Ex.: 1024"></label>
-          <label>Telefone da compra<input name="phone" inputmode="tel" required placeholder="(00) 00000-0000"></label>
-          <label class="wide">Código de rastreamento<input name="tracking_code" required autocomplete="off" placeholder="Digite o código recebido no checkout"></label>
+          <label><span>Número do pedido</span><input name="order_number" inputmode="numeric" autocomplete="off" required placeholder="Ex.: 1024"></label>
+          <label><span>Telefone da compra</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="(00) 00000-0000"></label>
+          <label class="wide"><span>Código de rastreamento</span><input name="tracking_code" required autocomplete="off" placeholder="Digite o código recebido no checkout"></label>
           <button class="track-btn wide" type="submit">Consultar pedido <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
         </form>
         <div id="track-result" class="track-result hidden" aria-live="polite"></div>
