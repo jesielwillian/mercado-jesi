@@ -17,6 +17,15 @@ const selectedOrderIds = new Set(),
       style: "currency",
       currency: "BRL",
     }).format(Number(v || 0)),
+  formatPhone = (value = "") => {
+    const digits = String(value).replace(/\D/g, "").slice(0, 11);
+    if (!digits) return "Não informado";
+    if (digits.length <= 2) return `(${digits}`;
+    const ddd = digits.slice(0, 2), number = digits.slice(2);
+    if (number.length <= 4) return `(${ddd}) ${number}`;
+    if (number.length <= 8) return `(${ddd}) ${number.slice(0, 4)}-${number.slice(4)}`;
+    return `(${ddd}) ${number.slice(0, 5)}-${number.slice(5)}`;
+  },
   escapeHTML = (v = "") =>
     String(v).replace(
       /[&<>"']/g,
@@ -113,6 +122,9 @@ function renderPage() {
   content
     .querySelector("#order-modal-root")
     .addEventListener("change", handleStatusChange);
+  content
+    .querySelector("#order-modal-root")
+    .addEventListener("input", handlePhoneInput);
 }
 function updateBulkControls(filtered = []) {
   const archive = content.querySelector("#orders-bulk-archive"),
@@ -347,9 +359,9 @@ function openDetails(id) {
     payment = (o.payments || [])[0],
     paymentLabel = payment ? ({pix:"Pix",card:"Cartão online",onsite_card:"Cartão na entrega",cash:"Dinheiro"}[payment.method] || payment.method) + ` · ${{pending:"Pendente",paid:"Pago",failed:"Falhou",refunded:"Estornado"}[payment.status] || payment.status}` : "Não informado";
   root.innerHTML = `<div class="order-modal-backdrop" data-modal-backdrop><section class="order-modal" role="dialog" aria-modal="true" aria-label="Detalhes do pedido"><div class="order-modal-header"><h3><i class="fa-solid fa-receipt" style="color:#176b43;margin-right:8px" aria-hidden="true"></i>Pedido #${escapeHTML(o.order_number)}</h3><button type="button" class="order-modal-close" data-close-modal aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button></div>
-  <div class="order-detail-grid"><div class="order-detail-item"><small><i class="fa-solid fa-user" aria-hidden="true"></i>Cliente</small><strong>${escapeHTML(o.customer_name)}</strong></div><div class="order-detail-item"><small><i class="fa-solid fa-phone" aria-hidden="true"></i>Telefone</small><strong>${escapeHTML(o.customer_phone)}</strong></div><div class="order-detail-item"><small><i class="fa-solid fa-calendar-days" aria-hidden="true"></i>Data do pedido</small><strong>${formatDate(o.created_at)}</strong></div><div class="order-detail-item"><small><i class="fa-solid fa-bag-shopping" aria-hidden="true"></i>Modalidade</small><strong>${o.fulfillment === "delivery" ? "Entrega" : "Retirada"}</strong></div><div class="order-detail-item" style="grid-column:1/-1"><small><i class="fa-solid fa-location-dot" aria-hidden="true"></i>Endereço</small><strong>${formatAddress(o.delivery_address)}</strong></div><div class="order-detail-item" style="grid-column:1/-1"><small><i class="fa-solid fa-note-sticky" aria-hidden="true"></i>Observações</small><strong>${escapeHTML(o.notes || "Nenhuma observação")}</strong></div></div>
+  <div class="order-detail-grid"><div class="order-detail-item"><small><i class="fa-solid fa-user" aria-hidden="true"></i>Cliente</small><strong>${escapeHTML(o.customer_name)}</strong></div><div class="order-detail-item"><small><i class="fa-solid fa-phone" aria-hidden="true"></i>Telefone</small><strong>${escapeHTML(formatPhone(o.customer_phone))}</strong></div><div class="order-detail-item"><small><i class="fa-solid fa-calendar-days" aria-hidden="true"></i>Data do pedido</small><strong>${formatDate(o.created_at)}</strong></div><div class="order-detail-item"><small><i class="fa-solid fa-bag-shopping" aria-hidden="true"></i>Modalidade</small><strong>${o.fulfillment === "delivery" ? "Entrega" : "Retirada"}</strong></div><div class="order-detail-item" style="grid-column:1/-1"><small><i class="fa-solid fa-location-dot" aria-hidden="true"></i>Endereço</small><strong>${formatAddress(o.delivery_address)}</strong></div><div class="order-detail-item" style="grid-column:1/-1"><small><i class="fa-solid fa-note-sticky" aria-hidden="true"></i>Observações</small><strong>${escapeHTML(o.notes || "Nenhuma observação")}</strong></div></div>
   <div class="order-detail-grid" style="margin-top:12px"><div class="order-detail-item"><small><i class="fa-solid fa-credit-card" aria-hidden="true"></i>Pagamento</small><strong>${escapeHTML(paymentLabel)}</strong></div><div class="order-detail-item"><small><i class="fa-solid fa-truck-fast" aria-hidden="true"></i>Entregador</small><strong>${escapeHTML(o.assigned_courier || "Não atribuído")}</strong></div></div>
-  ${o.fulfillment === "delivery" ? `<section class="order-delivery-card"><div class="order-delivery-head"><span class="order-delivery-icon"><i class="fa-solid fa-truck-fast" aria-hidden="true"></i></span><div><strong>Dados da entrega própria</strong><small>Responsável e orientações para a entrega</small></div></div><div class="order-delivery-fields"><label class="order-delivery-field"><i class="fa-solid fa-user" aria-hidden="true"></i><input data-courier-name type="text" maxlength="120" placeholder="Nome do entregador" aria-label="Nome do entregador" value="${escapeHTML(o.assigned_courier || "")}"></label><label class="order-delivery-field"><i class="fa-solid fa-phone" aria-hidden="true"></i><input data-courier-phone type="tel" maxlength="15" placeholder="Telefone do entregador" aria-label="Telefone do entregador" value="${escapeHTML(o.courier_phone || "")}"></label><label class="order-delivery-field"><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i><textarea data-delivery-notes rows="2" maxlength="1000" placeholder="Instruções da entrega" aria-label="Instruções da entrega">${escapeHTML(o.delivery_notes || "")}</textarea></label><button type="button" class="order-delivery-save" data-save-delivery="${escapeHTML(o.id)}"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>Salvar dados da entrega</button></div></section>` : ""}
+  ${o.fulfillment === "delivery" ? `<section class="order-delivery-card"><div class="order-delivery-head"><span class="order-delivery-icon"><i class="fa-solid fa-truck-fast" aria-hidden="true"></i></span><div><strong>Dados da entrega própria</strong><small>Responsável e orientações para a entrega</small></div></div><div class="order-delivery-fields"><label class="order-delivery-field"><i class="fa-solid fa-user" aria-hidden="true"></i><input data-courier-name type="text" maxlength="120" placeholder="Nome do entregador" aria-label="Nome do entregador" value="${escapeHTML(o.assigned_courier || "")}"></label><label class="order-delivery-field"><i class="fa-solid fa-phone" aria-hidden="true"></i><input data-courier-phone type="tel" maxlength="15" placeholder="Telefone do entregador" aria-label="Telefone do entregador" value="${escapeHTML(formatPhone(o.courier_phone || "").replace("Não informado", ""))}"></label><label class="order-delivery-field"><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i><textarea data-delivery-notes rows="2" maxlength="1000" placeholder="Instruções da entrega" aria-label="Instruções da entrega">${escapeHTML(o.delivery_notes || "")}</textarea></label><button type="button" class="order-delivery-save" data-save-delivery="${escapeHTML(o.id)}"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>Salvar dados da entrega</button></div></section>` : ""}
   ${(o.payments || []).some((p) => p.payment_channel === "onsite" && p.status !== "paid") ? `<button type="button" class="orders-btn orders-btn-primary" data-mark-onsite-paid="${escapeHTML(o.id)}"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Confirmar cartão recebido na entrega</button>` : ""}
   <h4><i class="fa-solid fa-basket-shopping" style="color:#176b43;margin-right:7px" aria-hidden="true"></i>Itens do pedido</h4><table class="order-items"><tbody>${items.length ? items.map((i) => `<tr><td><strong>${escapeHTML(i.product_name)}</strong><small>${Number(i.quantity).toLocaleString("pt-BR")} ${escapeHTML(i.unit)}</small></td><td>${money(i.line_total)}</td></tr>`).join("") : "<tr><td>Nenhum item encontrado.</td></tr>"}</tbody></table><div class="order-detail-grid" style="margin-top:18px"><div class="order-detail-item"><small><i class="fa-solid fa-calculator" aria-hidden="true"></i>Subtotal</small><strong>${money(o.subtotal)}</strong></div><div class="order-detail-item"><small><i class="fa-solid fa-truck" aria-hidden="true"></i>Taxa de entrega</small><strong>${money(o.delivery_fee)}</strong></div><div class="order-detail-item"><small><i class="fa-solid fa-tag" aria-hidden="true"></i>Desconto</small><strong>${money(o.discount)}</strong></div><div class="order-detail-item"><small><i class="fa-solid fa-wallet" aria-hidden="true"></i>Total</small><strong>${money(o.total)}</strong></div></div><label class="order-status-control"><strong><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Atualizar status do pedido</strong><select data-status-id="${escapeHTML(o.id)}">${Object.entries(statuses).map(([v,l])=>`<option value="${v}" ${o.status===v?"selected":""}>${l}</option>`).join("")}</select></label></section></div>`;
 }
@@ -471,6 +483,13 @@ async function handleTableAction(e) {
   const detail = e.target.closest("[data-order-details]");
   if (detail) openDetails(detail.dataset.orderDetails);
 }
+function handlePhoneInput(e) {
+  const input = e.target.closest("[data-courier-phone]");
+  if (!input) return;
+  const formatted = formatPhone(input.value);
+  input.value = formatted === "Não informado" ? "" : formatted;
+  input.setSelectionRange(input.value.length, input.value.length);
+}
 async function handleModalClick(e) {
   const save = e.target.closest("[data-save-delivery]"),
     paid = e.target.closest("[data-mark-onsite-paid]");
@@ -480,7 +499,7 @@ async function handleModalClick(e) {
         order_id: save.dataset.saveDelivery,
         action: "update_courier",
         courier_name: root.querySelector("[data-courier-name]")?.value || "",
-        courier_phone: root.querySelector("[data-courier-phone]")?.value || "",
+        courier_phone: formatPhone(root.querySelector("[data-courier-phone]")?.value || "").replace("Não informado", ""),
         delivery_notes:
           root.querySelector("[data-delivery-notes]")?.value || "",
         note: "Dados do entregador atualizados.",
