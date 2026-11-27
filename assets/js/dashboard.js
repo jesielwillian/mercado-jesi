@@ -238,7 +238,7 @@ async function loadOverview() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const [ordersResult, productsResult, inventoryResult, todaySalesResult] =
+  const [ordersResult, pendingOrdersResult, productsResult, inventoryResult, todaySalesResult] =
     await Promise.all([
       supabase
         .from("orders")
@@ -249,6 +249,13 @@ async function loadOverview() {
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(5),
+
+      supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending")
+        .is("deleted_at", null)
+        .is("archived_at", null),
 
       supabase.from("products").select("id", { count: "exact", head: true }),
 
@@ -264,6 +271,7 @@ async function loadOverview() {
 
   const errors = [
     ordersResult.error,
+    pendingOrdersResult.error,
     productsResult.error,
     inventoryResult.error,
     todaySalesResult.error,
@@ -298,6 +306,13 @@ async function loadOverview() {
 
   if (!ordersResult.error && ordersEl) {
     ordersEl.textContent = String(ordersResult.count ?? 0);
+  }
+
+  const ordersNavCount = document.querySelector("#orders-nav-count");
+  if (!pendingOrdersResult.error && ordersNavCount) {
+    const pendingCount = Number(pendingOrdersResult.count ?? 0);
+    ordersNavCount.textContent = String(pendingCount);
+    ordersNavCount.hidden = pendingCount === 0;
   }
 
   if (!productsResult.error && productsEl) {
