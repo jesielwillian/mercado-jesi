@@ -2,35 +2,40 @@ import { supabase } from "./supabase.js";
 let orders = [],
   content,
   notify;
-const selectedOrderIds = new Set();
-const statuses = {
-  pending: "Pendente",
-  confirmed: "Confirmado",
-  preparing: "Em preparação",
-  ready: "Pronto",
-  out_for_delivery: "Saiu para entrega",
-  completed: "Concluído",
-  cancelled: "Cancelado",
-};
-const money = (v) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
-    Number(v || 0),
-  );
-const escapeHTML = (v = "") =>
-  String(v).replace(
-    /[&<>"']/g,
-    (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        c
-      ],
-  );
-const formatDate = (v) =>
-  v
-    ? new Intl.DateTimeFormat("pt-BR", {
-        dateStyle: "short",
-        timeStyle: "short",
-      }).format(new Date(v))
-    : "—";
+const selectedOrderIds = new Set(),
+  statuses = {
+    pending: "Pendente",
+    confirmed: "Confirmado",
+    preparing: "Em preparação",
+    ready: "Pronto",
+    out_for_delivery: "Saiu para entrega",
+    completed: "Concluído",
+    cancelled: "Cancelado",
+  },
+  money = (v) =>
+    new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(Number(v || 0)),
+  escapeHTML = (v = "") =>
+    String(v).replace(
+      /[&<>"']/g,
+      (c) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[c],
+    ),
+  formatDate = (v) =>
+    v
+      ? new Intl.DateTimeFormat("pt-BR", {
+          dateStyle: "short",
+          timeStyle: "short",
+        }).format(new Date(v))
+      : "—";
 function hasFinancialHistory(o) {
   const p = o.payments || [];
   return (
@@ -42,9 +47,7 @@ function addStyles() {
   if (document.querySelector("#orders-admin-styles")) return;
   const s = document.createElement("style");
   s.id = "orders-admin-styles";
-  s.textContent = `
-.orders-admin{display:grid;gap:22px}.orders-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.orders-heading h2{margin:0 0 6px;font-size:1.35rem}.orders-heading p{margin:0;color:var(--muted,#778078)}.orders-summary{display:flex;gap:12px;flex-wrap:wrap}.orders-stat{flex:1;min-width:150px;padding:17px;background:var(--panel,#fff);border:1px solid var(--border,#e8ece8);border-radius:12px}.orders-stat span{display:block;color:var(--muted,#778078);font-size:.82rem;margin-bottom:7px}.orders-stat strong{font-size:1.35rem}.orders-panel{padding:20px;background:var(--panel,#fff);border:1px solid var(--border,#e8ece8);border-radius:14px}.orders-toolbar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px}.orders-toolbar input,.orders-toolbar select{min-width:0;padding:11px 13px;border:1px solid var(--border,#dfe5df);border-radius:9px;background:var(--input-bg,#fff);color:inherit;font:inherit}.orders-toolbar input{flex:1;min-width:220px}.orders-btn{border:0;border-radius:9px;padding:10px 15px;font:inherit;font-weight:700;cursor:pointer}.orders-btn-primary{background:#176b43;color:white}.orders-table-wrap{overflow-x:auto}.orders-table{width:100%;min-width:760px;border-collapse:collapse}.orders-table th,.orders-table td{padding:13px 11px;text-align:left;border-bottom:1px solid var(--border,#edf0ed);font-size:.86rem}.orders-table th{color:var(--muted,#778078);font-size:.73rem;letter-spacing:.04em}.orders-table td strong{display:block}.orders-muted{display:block;margin-top:4px;color:var(--muted,#778078);font-size:.78rem}.orders-status{display:inline-flex;padding:5px 9px;border-radius:20px;font-size:.74rem;font-weight:700;white-space:nowrap}.orders-status.pending{background:#fff3d6;color:#946200}.orders-status.confirmed{background:#e7efff;color:#2455a5}.orders-status.preparing{background:#f1eaff;color:#6941a5}.orders-status.ready{background:#e1f5ed;color:#176b43}.orders-status.out_for_delivery{background:#e4f4fa;color:#17617c}.orders-status.completed{background:#e7f5ec;color:#176b43}.orders-status.cancelled{background:#fff0f0;color:#b42318}.orders-actions{display:flex;align-items:center;gap:8px;white-space:nowrap}.orders-actions button{border:0;background:transparent;color:#176b43;font:inherit;font-weight:700;cursor:pointer}.orders-actions .orders-delete-btn,.orders-actions .orders-archive-btn,.orders-actions .orders-restore-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:34px;padding:7px 11px;border-radius:8px;font-size:.78rem;font-weight:800;transition:background .18s ease,border-color .18s ease,transform .18s ease}.orders-actions .orders-delete-btn{border:1px solid #f2caca;background:#fff5f5;color:#b42318}.orders-actions .orders-delete-btn:hover{background:#feecec;border-color:#e9aaaa;transform:translateY(-1px)}.orders-actions .orders-archive-btn{border:1px solid #d8e4f4;background:#f3f7fd;color:#2455a5}.orders-actions .orders-archive-btn:hover{background:#e8f0fc;border-color:#b9cceb;transform:translateY(-1px)}.orders-actions .orders-restore-btn{border:1px solid #cce8d7;background:#effaf3;color:#176b43}.orders-actions .orders-restore-btn:hover{background:#e1f5e9;border-color:#a8d9bb;transform:translateY(-1px)}.orders-actions button:disabled{opacity:.55;cursor:wait;transform:none}.orders-financial-lock{display:inline-flex;align-items:center;gap:5px;padding:7px 9px;border-radius:8px;background:#f4f5f6;color:#697586;font-size:.74rem;font-weight:800}.orders-empty{padding:30px 12px!important;text-align:center!important;color:var(--muted,#778078)}.orders-count{color:var(--muted,#778078);font-size:.84rem;margin-bottom:12px}.orders-bulk-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}.orders-bulk-info{color:var(--muted,#778078);font-size:.84rem}.orders-bulk-buttons{display:flex;gap:9px;flex-wrap:wrap}.orders-bulk-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;border:1px solid;border-radius:9px;font:inherit;font-size:.82rem;font-weight:800;cursor:pointer;transition:background .18s ease}.orders-bulk-btn:disabled{opacity:.45;cursor:not-allowed}.orders-bulk-archive{border-color:#d8e4f4;background:#f3f7fd;color:#2455a5}.orders-bulk-archive:hover:not(:disabled){background:#e8f0fc}.orders-bulk-delete{border-color:#f2caca;background:#fff5f5;color:#b42318}.orders-bulk-delete:hover:not(:disabled){background:#feecec}.orders-select-order{width:16px;height:16px;cursor:pointer;accent-color:#2455a5;vertical-align:middle}.order-modal-backdrop{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:18px;background:rgba(0,0,0,.65)}.order-modal{width:min(680px,100%);max-height:90vh;overflow:auto;padding:23px;background:var(--panel,#fff);color:var(--text,#202820);border:1px solid var(--border,#e8ece8);border-radius:16px;box-shadow:0 20px 70px rgba(0,0,0,.25)}.order-modal-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px}.order-modal-header h3{margin:0}.order-modal-close{border:0;background:transparent;font-size:1.5rem;cursor:pointer;color:inherit}.order-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:20px}.order-detail-item{padding:12px;border-radius:9px;background:var(--input-bg,#f5f7f5)}.order-detail-item small{display:block;color:var(--muted,#778078);margin-bottom:5px}.order-detail-item strong{overflow-wrap:anywhere}.order-modal h4{margin:20px 0 10px}.order-items{width:100%;border-collapse:collapse}.order-items td{padding:10px 5px;border-bottom:1px solid var(--border,#edf0ed);font-size:.86rem}.order-items td:last-child{text-align:right}.order-total{display:flex;justify-content:space-between;padding-top:15px;font-size:1.05rem;font-weight:800}.order-status-control{display:grid;gap:8px;margin-top:20px}.order-status-control select{width:100%;padding:12px;border:1px solid var(--border,#dfe5df);border-radius:9px;background:var(--input-bg,#fff);color:inherit;font:inherit}@media(max-width:600px){.orders-panel{padding:13px}.orders-toolbar input{min-width:100%}.order-detail-grid{grid-template-columns:1fr}.order-modal{padding:17px}.orders-bulk-buttons{width:100%}.orders-bulk-btn{flex:1}}
-`;
+  s.textContent = ` .orders-admin{display:grid;gap:22px}.orders-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.orders-heading h2{margin:0 0 6px;font-size:1.35rem}.orders-heading p{margin:0;color:var(--muted,#778078)}.orders-summary{display:flex;gap:12px;flex-wrap:wrap}.orders-stat{flex:1;min-width:150px;padding:17px;background:var(--panel,#fff);border:1px solid var(--border,#e8ece8);border-radius:12px}.orders-stat span{display:block;color:var(--muted,#778078);font-size:.82rem;margin-bottom:7px}.orders-stat strong{font-size:1.35rem}.orders-panel{padding:20px;background:var(--panel,#fff);border:1px solid var(--border,#e8ece8);border-radius:14px}.orders-toolbar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px}.orders-toolbar input,.orders-toolbar select{min-width:0;padding:11px 13px;border:1px solid var(--border,#dfe5df);border-radius:9px;background:var(--input-bg,#fff);color:inherit;font:inherit}.orders-toolbar input{flex:1;min-width:220px}.orders-btn{border:0;border-radius:9px;padding:10px 15px;font:inherit;font-weight:700;cursor:pointer}.orders-btn-primary{background:#176b43;color:white}.orders-table-wrap{overflow-x:auto}.orders-table{width:100%;min-width:760px;border-collapse:collapse}.orders-table th,.orders-table td{padding:13px 11px;text-align:left;border-bottom:1px solid var(--border,#edf0ed);font-size:.86rem}.orders-table th{color:var(--muted,#778078);font-size:.73rem;letter-spacing:.04em}.orders-table td strong{display:block}.orders-muted{display:block;margin-top:4px;color:var(--muted,#778078);font-size:.78rem}.orders-status{display:inline-flex;padding:5px 9px;border-radius:20px;font-size:.74rem;font-weight:700;white-space:nowrap}.orders-status.pending{background:#fff3d6;color:#946200}.orders-status.confirmed{background:#e7efff;color:#2455a5}.orders-status.preparing{background:#f1eaff;color:#6941a5}.orders-status.ready{background:#e1f5ed;color:#176b43}.orders-status.out_for_delivery{background:#e4f4fa;color:#17617c}.orders-status.completed{background:#e7f5ec;color:#176b43}.orders-status.cancelled{background:#fff0f0;color:#b42318}.orders-actions{display:flex;align-items:center;gap:8px;white-space:nowrap}.orders-actions button{border:0;background:transparent;color:#176b43;font:inherit;font-weight:700;cursor:pointer}.orders-actions .orders-delete-btn,.orders-actions .orders-archive-btn,.orders-actions .orders-restore-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:34px;padding:7px 11px;border-radius:8px;font-size:.78rem;font-weight:800;transition:background .18s ease,border-color .18s ease,transform .18s ease}.orders-actions .orders-delete-btn{border:1px solid #f2caca;background:#fff5f5;color:#b42318}.orders-actions .orders-delete-btn:hover{background:#feecec;border-color:#e9aaaa;transform:translateY(-1px)}.orders-actions .orders-archive-btn{border:1px solid #d8e4f4;background:#f3f7fd;color:#2455a5}.orders-actions .orders-archive-btn:hover{background:#e8f0fc;border-color:#b9cceb;transform:translateY(-1px)}.orders-actions .orders-restore-btn{border:1px solid #cce8d7;background:#effaf3;color:#176b43}.orders-actions .orders-restore-btn:hover{background:#e1f5e9;border-color:#a8d9bb;transform:translateY(-1px)}.orders-actions button:disabled{opacity:.55;cursor:wait;transform:none}.orders-financial-lock{display:inline-flex;align-items:center;gap:5px;padding:7px 9px;border-radius:8px;background:#f4f5f6;color:#697586;font-size:.74rem;font-weight:800}.orders-empty{padding:30px 12px!important;text-align:center!important;color:var(--muted,#778078)}.orders-count{color:var(--muted,#778078);font-size:.84rem;margin-bottom:12px}.orders-bulk-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}.orders-bulk-info{color:var(--muted,#778078);font-size:.84rem}.orders-bulk-buttons{display:flex;gap:9px;flex-wrap:wrap}.orders-bulk-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;border:1px solid;border-radius:9px;font:inherit;font-size:.82rem;font-weight:800;cursor:pointer;transition:background .18s ease}.orders-bulk-btn:disabled{opacity:.45;cursor:not-allowed}.orders-bulk-archive{border-color:#d8e4f4;background:#f3f7fd;color:#2455a5}.orders-bulk-archive:hover:not(:disabled){background:#e8f0fc}.orders-bulk-delete{border-color:#f2caca;background:#fff5f5;color:#b42318}.orders-bulk-delete:hover:not(:disabled){background:#feecec}.orders-select-order{width:16px;height:16px;cursor:pointer;accent-color:#2455a5;vertical-align:middle}.order-modal-backdrop{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:18px;background:rgba(0,0,0,.65)}.order-modal{width:min(680px,100%);max-height:90vh;overflow:auto;padding:23px;background:var(--panel,#fff);color:var(--text,#202820);border:1px solid var(--border,#e8ece8);border-radius:16px;box-shadow:0 20px 70px rgba(0,0,0,.25)}.order-modal-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px}.order-modal-header h3{margin:0}.order-modal-close{border:0;background:transparent;font-size:1.5rem;cursor:pointer;color:inherit}.order-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:20px}.order-detail-item{padding:12px;border-radius:9px;background:var(--input-bg,#f5f7f5)}.order-detail-item small{display:block;color:var(--muted,#778078);margin-bottom:5px}.order-detail-item strong{overflow-wrap:anywhere}.order-modal h4{margin:20px 0 10px}.order-items{width:100%;border-collapse:collapse}.order-items td{padding:10px 5px;border-bottom:1px solid var(--border,#edf0ed);font-size:.86rem}.order-items td:last-child{text-align:right}.order-total{display:flex;justify-content:space-between;padding-top:15px;font-size:1.05rem;font-weight:800}.order-status-control{display:grid;gap:8px;margin-top:20px}.order-status-control select{width:100%;padding:12px;border:1px solid var(--border,#dfe5df);border-radius:9px;background:var(--input-bg,#fff);color:inherit;font:inherit}@media(max-width:600px){.orders-panel{padding:13px}.orders-toolbar input{min-width:100%}.order-detail-grid{grid-template-columns:1fr}.order-modal{padding:17px}.orders-bulk-buttons{width:100%}.orders-bulk-btn{flex:1}}`;
   document.head.appendChild(s);
 }
 function render() {
@@ -52,16 +55,16 @@ function render() {
       .trim()
       .toLocaleLowerCase("pt-BR"),
     status = content.querySelector("#orders-filter")?.value || "",
-    view = content.querySelector("#orders-view")?.value || "active";
-  const filtered = orders.filter(
-    (o) =>
-      (view === "archived" ? Boolean(o.archived_at) : !o.archived_at) &&
-      `${o.order_number} ${o.customer_name} ${o.customer_phone}`
-        .toLocaleLowerCase("pt-BR")
-        .includes(q) &&
-      (!status || o.status === status),
-  );
-  const tbody = content.querySelector("#orders-table-body"),
+    view = content.querySelector("#orders-view")?.value || "active",
+    filtered = orders.filter(
+      (o) =>
+        (view === "archived" ? Boolean(o.archived_at) : !o.archived_at) &&
+        `${o.order_number} ${o.customer_name} ${o.customer_phone}`
+          .toLocaleLowerCase("pt-BR")
+          .includes(q) &&
+        (!status || o.status === status),
+    ),
+    tbody = content.querySelector("#orders-table-body"),
     count = content.querySelector("#orders-count");
   if (!tbody) return;
   count.textContent = `${filtered.length} pedido(s) encontrado(s)`;
@@ -70,7 +73,7 @@ function render() {
     ? filtered
         .map(
           (o) =>
-            `<tr><td>${view === "active" ? `<input type="checkbox" class="orders-select-order" data-select-order="${escapeHTML(o.id)}" aria-label="Selecionar pedido #${escapeHTML(o.order_number)}" ${selectedOrderIds.has(o.id) ? "checked" : ""}>` : ""}<strong>#${escapeHTML(o.order_number)}</strong></td><td><strong>${escapeHTML(o.customer_name)}</strong><span class="orders-muted">${escapeHTML(o.customer_phone)}</span></td><td>${formatDate(o.created_at)}</td><td>${o.fulfillment === "delivery" ? "Entrega" : "Retirada"}</td><td><strong>${money(o.total)}</strong></td><td><span class="orders-status ${escapeHTML(o.status)}">${statuses[o.status] || escapeHTML(o.status)}</span></td><td class="orders-actions"><button type="button" data-order-details="${escapeHTML(o.id)}">Detalhes</button>${view === "active" ? (hasFinancialHistory(o) ? `<button type="button" class="orders-archive-btn" data-order-archive="${escapeHTML(o.id)}" title="Arquivar e preservar o histórico financeiro"><i class="fa-solid fa-box-archive" aria-hidden="true"></i>Arquivar</button>` : `<button type="button" class="orders-delete-btn" data-order-delete="${escapeHTML(o.id)}" title="Excluir pedido após validação do pagamento"><i class="fa-solid fa-trash-can" aria-hidden="true"></i>Excluir</button>`) : `<button type="button" class="orders-restore-btn" data-order-restore="${escapeHTML(o.id)}" title="Restaurar pedido"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i>Restaurar</button>${hasFinancialHistory(o) ? `<span class="orders-financial-lock" title="Pedido protegido por histórico financeiro"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>Protegido</span>` : `<button type="button" class="orders-delete-btn" data-order-delete="${escapeHTML(o.id)}" title="Excluir definitivamente este pedido"><i class="fa-solid fa-trash-can" aria-hidden="true"></i>Excluir</button>`}`}</td></tr>`,
+            `<tr><td><input type="checkbox" class="orders-select-order" data-select-order="${escapeHTML(o.id)}" aria-label="Selecionar pedido #${escapeHTML(o.order_number)}" ${selectedOrderIds.has(o.id) ? "checked" : ""}><strong>#${escapeHTML(o.order_number)}</strong></td><td><strong>${escapeHTML(o.customer_name)}</strong><span class="orders-muted">${escapeHTML(o.customer_phone)}</span></td><td>${formatDate(o.created_at)}</td><td>${o.fulfillment === "delivery" ? "Entrega" : "Retirada"}</td><td><strong>${money(o.total)}</strong></td><td><span class="orders-status ${escapeHTML(o.status)}">${statuses[o.status] || escapeHTML(o.status)}</span></td><td class="orders-actions"><button type="button" data-order-details="${escapeHTML(o.id)}">Detalhes</button>${view === "active" ? (hasFinancialHistory(o) ? `<button type="button" class="orders-archive-btn" data-order-archive="${escapeHTML(o.id)}" title="Arquivar e preservar o histórico financeiro"><i class="fa-solid fa-box-archive" aria-hidden="true"></i>Arquivar</button>` : `<button type="button" class="orders-delete-btn" data-order-delete="${escapeHTML(o.id)}" title="Excluir pedido após validação do pagamento"><i class="fa-solid fa-trash-can" aria-hidden="true"></i>Excluir</button>`) : `<button type="button" class="orders-restore-btn" data-order-restore="${escapeHTML(o.id)}" title="Restaurar pedido"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i>Restaurar</button>${hasFinancialHistory(o) ? `<span class="orders-financial-lock" title="Pedido protegido por histórico financeiro"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>Protegido</span>` : `<button type="button" class="orders-delete-btn" data-order-delete="${escapeHTML(o.id)}" title="Excluir definitivamente este pedido"><i class="fa-solid fa-trash-can" aria-hidden="true"></i>Excluir</button>`}`}</td></tr>`,
         )
         .join("")
     : `<tr><td colspan="7" class="orders-empty">${q || status ? "Nenhum pedido corresponde aos filtros." : "Nenhum pedido registrado ainda."}</td></tr>`;
@@ -119,29 +122,31 @@ function updateBulkControls(filtered = []) {
     all = content.querySelector("#orders-select-all");
   if (!container || !archive || !del || !info) return;
   const active = content.querySelector("#orders-view")?.value === "active";
-  container.hidden = !active;
-  if (!active) return;
-  const eligible = filtered.filter((o) => !o.archived_at),
-    selected = eligible.filter((o) => selectedOrderIds.has(o.id)),
-    archiveCount = selected.filter(hasFinancialHistory).length,
-    deleteCount = selected.filter((o) => !hasFinancialHistory(o)).length;
+  container.hidden = false;
+  archive.hidden = !active;
+  const selected = filtered.filter((o) => selectedOrderIds.has(o.id)),
+    archiveCount = active ? selected.filter(hasFinancialHistory).length : 0,
+    deleteCount = selected.filter((o) => !hasFinancialHistory(o)).length,
+    protectedCount = selected.filter(hasFinancialHistory).length;
   archive.disabled = archiveCount === 0;
   del.disabled = deleteCount === 0;
-  info.textContent = `${selected.length} selecionado(s): ${archiveCount} para arquivar e ${deleteCount} para excluir`;
+  info.textContent = `${selected.length} selecionado(s): ${archiveCount} para arquivar, ${deleteCount} para excluir e ${protectedCount} protegido(s) por histórico financeiro`;
   if (all) {
     all.checked =
-      eligible.length > 0 && eligible.every((o) => selectedOrderIds.has(o.id));
+      filtered.length > 0 && filtered.every((o) => selectedOrderIds.has(o.id));
     all.indeterminate =
-      selected.length > 0 && selected.length < eligible.length;
+      selected.length > 0 && selected.length < filtered.length;
   }
 }
 function handleSelectionChange(e) {
   const t = e.target;
   if (t.id === "orders-select-all") {
-    content.querySelectorAll("[data-select-order]").forEach((c) => {
-      if (t.checked) selectedOrderIds.add(c.dataset.selectOrder);
-      else selectedOrderIds.delete(c.dataset.selectOrder);
-    });
+    content
+      .querySelectorAll("#orders-table-body [data-select-order]")
+      .forEach((c) => {
+        if (t.checked) selectedOrderIds.add(c.dataset.selectOrder);
+        else selectedOrderIds.delete(c.dataset.selectOrder);
+      });
     render();
     return;
   }
@@ -199,8 +204,7 @@ async function archiveSelectedOrders() {
 }
 async function deleteSelectedOrders() {
   const list = orders.filter(
-    (o) =>
-      selectedOrderIds.has(o.id) && !o.archived_at && !hasFinancialHistory(o),
+    (o) => selectedOrderIds.has(o.id) && !hasFinancialHistory(o),
   );
   if (!list.length) {
     notify(
@@ -223,19 +227,8 @@ async function deleteSelectedOrders() {
         "delete-order-safely",
         { body: { order_id: o.id } },
       );
-      if (error) {
-        let msg = data?.error;
-        if (!msg && error.context?.clone) {
-          try {
-            msg = (await error.context.clone().json())?.error;
-          } catch (_) {}
-        }
-        throw new Error(
-          msg ||
-            error.message ||
-            "Não foi possível validar a cobrança no Mercado Pago.",
-        );
-      }
+      if (error)
+        throw new Error(await getEdgeFunctionErrorMessage(error, data));
       if (data?.success !== true)
         throw new Error(data?.error || "O banco não confirmou a exclusão.");
       orders = orders.filter((x) => x.id !== o.id);
@@ -416,6 +409,7 @@ async function handleTableAction(e) {
       if (data?.success !== true)
         throw new Error(data?.error || "O banco não confirmou a restauração.");
       o.archived_at = null;
+      selectedOrderIds.delete(o.id);
       updateSummary();
       render();
       notify(`Pedido #${o.order_number} restaurado para os pedidos ativos.`);
@@ -432,6 +426,12 @@ async function handleTableAction(e) {
   if (db) {
     const o = orders.find((x) => x.id === db.dataset.orderDelete);
     if (!o) return;
+    if (hasFinancialHistory(o)) {
+      notify(
+        "Este pedido possui histórico financeiro e não pode ser excluído. Restaure ou mantenha-o arquivado.",
+      );
+      return;
+    }
     if (
       !window.confirm(
         `Excluir permanentemente o pedido #${o.order_number}?\n\nA cobrança online será verificada e, se ainda estiver aberta, será expirada. Pedidos com pagamento recebido ou movimentação no caixa não podem ser excluídos.`,
@@ -446,19 +446,8 @@ async function handleTableAction(e) {
         "delete-order-safely",
         { body: { order_id: o.id } },
       );
-      if (error) {
-        let msg = data?.error;
-        if (!msg && error.context?.clone) {
-          try {
-            msg = (await error.context.clone().json())?.error;
-          } catch (_) {}
-        }
-        throw new Error(
-          msg ||
-            error.message ||
-            "Não foi possível validar a cobrança no Mercado Pago.",
-        );
-      }
+      if (error)
+        throw new Error(await getEdgeFunctionErrorMessage(error, data));
       if (data?.success !== true)
         throw new Error(data?.error || "O banco não confirmou a exclusão.");
       orders = orders.filter((x) => x.id !== o.id);
@@ -537,13 +526,12 @@ async function handleModalClick(e) {
 async function getEdgeFunctionErrorMessage(error, data) {
   if (data?.error) return data.error;
   const r = error?.context;
-  if (r && typeof r.clone === "function") {
+  if (r && typeof r.clone === "function")
     try {
       const p = await r.clone().json();
       if (p?.error) return p.error;
       if (p?.message) return p.message;
     } catch {}
-  }
   return error?.message || "Erro desconhecido ao atualizar o pedido.";
 }
 async function handleStatusChange(e) {
