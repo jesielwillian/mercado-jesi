@@ -120,9 +120,26 @@ function addStyles() {
     .orders-status.out_for_delivery { background:#e4f4fa; color:#17617c; }
     .orders-status.completed { background:#e7f5ec; color:#176b43; }
     .orders-status.cancelled { background:#fff0f0; color:#b42318; }
+    .orders-actions {
+      display:flex; align-items:center; gap:8px; white-space:nowrap;
+    }
     .orders-actions button {
       border:0; background:transparent; color:#176b43;
       font:inherit; font-weight:700; cursor:pointer;
+    }
+    .orders-actions .orders-delete-btn {
+      display:inline-flex; align-items:center; justify-content:center;
+      gap:7px; min-height:34px; padding:7px 11px;
+      border:1px solid #f2caca; border-radius:8px;
+      background:#fff5f5; color:#b42318;
+      font-size:.78rem; font-weight:800;
+      transition:background .18s ease, border-color .18s ease, transform .18s ease;
+    }
+    .orders-actions .orders-delete-btn:hover {
+      background:#feecec; border-color:#e9aaaa; transform:translateY(-1px);
+    }
+    .orders-actions .orders-delete-btn:disabled {
+      opacity:.55; cursor:wait; transform:none;
     }
     .orders-empty {
       padding:30px 12px !important;
@@ -260,6 +277,15 @@ function render() {
             <button type="button" data-order-details="${escapeHTML(order.id)}">
               Detalhes
             </button>
+            ${selectedView !== "deleted" ? `
+              <button type="button" class="orders-delete-btn"
+                data-order-delete="${escapeHTML(order.id)}"
+                aria-label="Excluir pedido #${escapeHTML(order.order_number)}"
+                title="Excluir pedido permanentemente">
+                <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+                Excluir
+              </button>
+            ` : ""}
           </td>
         </tr>
       `).join("")
@@ -598,9 +624,47 @@ function openDetails(id) {
   `;
 }
 
-function handleTableAction(event) {
-  const button = event.target.closest("[data-order-details]");
-  if (button) openDetails(button.dataset.orderDetails);
+async function handleTableAction(event) {
+  const deleteButton = event.target.closest("[data-order-delete]");
+  if (deleteButton) {
+    const order = orders.find((item) => item.id === deleteButton.dataset.orderDelete);
+    if (!order) return;
+
+    const confirmed = window.confirm(
+      `Excluir permanentemente o pedido #${order.order_number}?\\n\\n` +
+      "Essa ação remove o pedido e seus itens do banco de dados e não pode ser desfeita."
+    );
+    if (!confirmed) return;
+
+    deleteButton.disabled = true;
+    deleteButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Excluindo...';
+
+    try {
+      const { data, error } = await supabase.rpc(
+        "delete_order_without_financial_history",
+        { p_order_id: order.id },
+      );
+
+      if (error) throw error;
+      if (data?.success !== true) {
+        throw new Error(data?.error || "O banco não confirmou a exclusão.");
+      }
+
+      orders = orders.filter((item) => item.id !== order.id);
+      updateSummary();
+      render();
+      notify(`Pedido #${order.order_number} excluído permanentemente.`);
+    } catch (error) {
+      console.error("Erro ao excluir pedido:", error);
+      deleteButton.disabled = false;
+      deleteButton.innerHTML = '<i class="fa-solid fa-trash-can" aria-hidden="true"></i> Excluir';
+      notify(error.message || "Não foi possível excluir o pedido.");
+    }
+    return;
+  }
+
+  const detailsButton = event.target.closest("[data-order-details]");
+  if (detailsButton) openDetails(detailsButton.dataset.orderDetails);
 }
 
 async function handleModalClick(event) {
