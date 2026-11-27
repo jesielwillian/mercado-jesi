@@ -1,3 +1,76 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rastreamento | Mercado Jesi</title><link rel="stylesheet" href="assets/css/styles.css"><style>
-.track-page{min-height:100vh;display:grid;place-items:center;padding:28px;background:#07090d;color:#f5f5f5}.track-card{width:min(720px,100%);padding:28px;border:1px solid rgba(255,255,255,.1);border-radius:20px;background:#10141d;box-shadow:0 25px 80px rgba(0,0,0,.35)}.track-head h1{margin:8px 0}.track-head p,.track-note{color:#9ca3af;line-height:1.6}.track-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:24px 0}.track-form label{display:grid;gap:6px;color:#aeb6c4;font-size:13px}.track-form input{min-height:46px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#090c12;color:#fff}.track-form .wide{grid-column:1/-1}.track-btn{min-height:46px;border:0;border-radius:10px;background:#d9a441;color:#16120a;font-weight:800;cursor:pointer}.track-result{border-top:1px solid rgba(255,255,255,.08);padding-top:20px}.track-status{font-size:22px;font-weight:800}.track-timeline{display:grid;gap:10px;margin-top:18px}.track-event{padding:12px;border-left:2px solid #d9a441;background:rgba(255,255,255,.03);border-radius:0 10px 10px 0}.track-event small{color:#8f98a8}.hidden{display:none}@media(max-width:600px){.track-form{grid-template-columns:1fr}.track-form .wide{grid-column:auto}}
-</style></head><body><main class="track-page"><section class="track-card"><div class="track-head"><span class="eyebrow">MERCADO JESI</span><h1>Acompanhe seu pedido</h1><p>Informe o número do pedido, telefone usado na compra e o código de rastreamento recebido após o checkout.</p></div><form id="track-form" class="track-form"><label>Número do pedido<input name="order_number" inputmode="numeric" required placeholder="Ex.: 1024"></label><label>Telefone da compra<input name="phone" inputmode="tel" required placeholder="(00) 00000-0000"></label><label class="wide">Código de rastreamento<input name="tracking_code" required autocomplete="off" placeholder="Código recebido no checkout"></label><button class="track-btn wide" type="submit">Consultar pedido</button></form><div id="track-result" class="track-result hidden" aria-live="polite"></div><p class="track-note">Se você não recebeu o código de rastreamento, use o mesmo telefone da compra e fale com o Mercado Jesi.</p></section></main><script type="module" src="assets/js/tracking.js"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#176b43">
+  <meta name="description" content="Acompanhe seu pedido do Mercado Jesi.">
+  <link rel="icon" type="image/webp" href="./assets/imagens/favicon.webp">
+  <title>Acompanhar pedido | Mercado Jesi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="./assets/css/styles.css">
+  <style>
+    .tracking-page{min-height:calc(100vh - 62px);display:grid;place-items:center;padding:56px 20px;background:linear-gradient(180deg,#f5f8f4 0%,#fff 100%)}
+    .tracking-shell{width:min(760px,100%)}
+    .tracking-breadcrumb{display:flex;align-items:center;gap:9px;margin:0 0 18px;color:var(--muted);font-size:13px;font-weight:700}
+    .tracking-breadcrumb a{color:var(--green);text-decoration:none}
+    .track-card{overflow:hidden;background:#fff;border:1px solid var(--line);border-radius:24px;box-shadow:0 18px 55px rgba(25,65,42,.10)}
+    .track-card::before{content:"";display:block;height:7px;background:linear-gradient(90deg,var(--green-dark),var(--green),var(--yellow))}
+    .track-card-inner{padding:clamp(24px,5vw,42px)}
+    .track-head .eyebrow{display:inline-flex;align-items:center;gap:8px;color:var(--green);font-size:11px;font-weight:900;letter-spacing:.13em}
+    .track-head h1{margin:10px 0 8px;color:var(--ink);font-size:clamp(28px,4vw,38px);line-height:1.15;font-weight:900}
+    .track-head p,.track-note{color:var(--muted);line-height:1.7}
+    .track-head p{margin:0;max-width:620px}
+    .track-form{display:grid;grid-template-columns:1fr 1fr;gap:17px;margin:30px 0 22px}
+    .track-form label{display:grid;gap:8px;color:var(--ink);font-size:13px;font-weight:800}
+    .track-form input{width:100%;min-height:50px;padding:0 15px;border:1px solid var(--line);border-radius:13px;background:#fbfcfa;color:var(--ink);font:inherit;font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s,background .2s}
+    .track-form input:focus{border-color:var(--green);background:#fff;box-shadow:0 0 0 4px rgba(23,107,67,.10)}
+    .track-form input::placeholder{color:#9aa49b}
+    .track-form .wide{grid-column:1/-1}
+    .track-btn{min-height:52px;border:0;border-radius:14px;background:linear-gradient(135deg,var(--green),var(--green-dark));color:#fff;font:inherit;font-weight:900;cursor:pointer;box-shadow:0 9px 20px rgba(23,107,67,.18);transition:transform .2s,box-shadow .2s,filter .2s}
+    .track-btn:hover{transform:translateY(-2px);box-shadow:0 13px 25px rgba(23,107,67,.23);filter:brightness(1.04)}
+    .track-btn:focus-visible{outline:3px solid var(--yellow);outline-offset:3px}
+    .track-note{display:flex;align-items:flex-start;gap:10px;margin:0;padding:15px 16px;border-radius:14px;background:#f4f8f3;font-size:13px}
+    .track-note i{margin-top:4px;color:var(--green)}
+    .track-result{margin:22px 0 0;padding-top:22px;border-top:1px solid var(--line)}
+    .track-status{font-size:22px;font-weight:900;color:var(--green-dark)}
+    .track-timeline{display:grid;gap:10px;margin-top:18px}
+    .track-event{padding:14px 16px;border-left:3px solid var(--green);background:#f5f8f4;border-radius:0 12px 12px 0}
+    .track-event small{color:var(--muted)}
+    .hidden{display:none}
+    .tracking-back{display:inline-flex;align-items:center;gap:9px;margin-top:20px;color:var(--green-dark);font-size:13px;font-weight:800;text-decoration:none}
+    .tracking-back:hover{color:var(--green)}
+    @media(max-width:600px){.tracking-page{min-height:calc(100vh - 40px);padding:32px 15px}.track-form{grid-template-columns:1fr;gap:14px}.track-form .wide{grid-column:auto}.track-card-inner{padding:24px 19px}.track-head h1{font-size:29px}}
+  </style>
+</head>
+<body>
+  <div class="top-strip">MERCADO JESI <span aria-hidden="true">•</span> Qualidade, economia e praticidade pertinho de você!</div>
+  <main class="tracking-page">
+    <div class="tracking-shell">
+      <div class="tracking-breadcrumb"><a href="./index.html"><i class="fa-solid fa-house" aria-hidden="true"></i> Início</a><i class="fa-solid fa-chevron-right" aria-hidden="true"></i><span>Acompanhar pedido</span></div>
+      <section class="track-card">
+        <div class="track-card-inner">
+          <div class="track-head">
+            <span class="eyebrow"><i class="fa-solid fa-box" aria-hidden="true"></i> MERCADO JESI</span>
+            <h1>Acompanhe seu pedido</h1>
+            <p>Informe os dados da sua compra para consultar o andamento e as atualizações da entrega.</p>
+          </div>
+          <form id="track-form" class="track-form">
+            <label>Número do pedido<input name="order_number" inputmode="numeric" required placeholder="Ex.: 1024"></label>
+            <label>Telefone da compra<input name="phone" inputmode="tel" required placeholder="(00) 00000-0000"></label>
+            <label class="wide">Código de rastreamento<input name="tracking_code" required autocomplete="off" placeholder="Digite o código recebido após a compra"></label>
+            <button class="track-btn wide" type="submit"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> &nbsp;Consultar pedido</button>
+          </form>
+          <div id="track-result" class="track-result hidden" aria-live="polite"></div>
+          <p class="track-note"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span>Não recebeu o código de rastreamento? Use o mesmo telefone informado na compra e entre em contato com o Mercado Jesi.</span></p>
+          <a class="tracking-back" href="./index.html"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Voltar para a loja</a>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script type="module" src="./assets/js/tracking.js"></script>
+</body>
+</html>

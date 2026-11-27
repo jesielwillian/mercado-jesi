@@ -2109,3 +2109,17 @@ body>.home-select-menu>.home-select-option:disabled {
         height: 44px;
     }
 }
+
+/* Posição fixa do botão "Voltar ao topo": canto inferior direito. */
+.back-to-top {
+    left: auto !important;
+    right: 22px !important;
+    bottom: 22px !important;
+}
+@media (max-width: 560px) {
+    .back-to-top {
+        left: auto !important;
+        right: 14px !important;
+        bottom: 14px !important;
+    }
+}
