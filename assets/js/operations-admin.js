@@ -179,62 +179,54 @@ export function mountOperationsAdmin({ content, notify = () => {} }) {
     view.innerHTML = `<div class="ops-panel"><h3>Novo pedido de compra</h3><form id="ops-purchase-form" class="ops-grid"><label class="ops-field">Fornecedor<select name="supplier_id" required><option value="">Selecione</option>${suppliers.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></label><label class="ops-field">Previsão de entrega<input name="expected_at" type="date"></label><label class="ops-field">Observações<input name="notes" maxlength="500"></label><div class="ops-field"><span>Produto</span><select id="ops-purchase-product">${productOptions()}</select></div><label class="ops-field">Quantidade<input id="ops-purchase-qty" type="number" min="0.001" step="0.001" value="1"></label><label class="ops-field">Custo unitário (R$)<input id="ops-purchase-cost" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off"></label><label class="ops-field">Validade (opcional)<input id="ops-purchase-expiry" type="date"></label><label class="ops-field">Código do lote<input id="ops-purchase-lot" maxlength="80" placeholder="Lote do fabricante"></label><div class="ops-actions"><button class="ops-btn" type="button" id="ops-add-purchase-item">Adicionar item</button><button class="ops-btn primary" type="submit">Salvar pedido de compra</button></div></form><div id="ops-purchase-items" class="ops-muted">Nenhum item adicionado.</div></div><div class="ops-panel"><div class="ops-history-head"><div><h3>Pedidos de compra recentes</h3><p class="ops-muted">Histórico dos pedidos de compra realizados.</p></div><button class="ops-clear-history" type="button" id="ops-clear-purchases"><i class="fa-solid fa-trash-can"></i> Limpar histórico</button></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>FORNECEDOR</th><th>DATA</th><th>STATUS</th><th>ITENS</th><th>VALOR</th><th>AÇÃO</th></tr></thead><tbody>${(orders || []).map((o) => `<tr><td>${esc(o.suppliers?.name || "Fornecedor")}</td><td>${dateBR(o.expected_at)}</td><td>${esc(purchaseStatusLabels[o.status] || o.status)}</td><td>${(o.purchase_order_items || []).length}</td><td>${money(o.subtotal)}</td><td>${o.status === "received" ? "Recebido" : `<button class="ops-btn primary" data-receive-purchase="${o.id}">Receber e atualizar estoque</button>`}</td></tr>`).join("") || '<tr><td colspan="6">Nenhum pedido de compra cadastrado.</td></tr>'}</tbody></table></div><p class="ops-muted">O recebimento é atômico: atualiza estoque, custo e lote de validade em uma única transação.</p></div>`;
     const items = [],
       itemsRoot = view.querySelector("#ops-purchase-items"),
-      costInput = view.querySelector("#ops-purchase-cost");
-    const formatCost = (value) => {
+      costInput = view.querySelector("#ops-purchase-cost"),
+      formatCost = (value) => {
         let raw = String(value ?? "")
           .replace(/^R\$\s*/, "")
-          .replace(/[^\d,.]/g, "");
+          .replace(/\D/g, "");
         if (!raw) return "";
-        if (raw.includes(",") || raw.includes(".")) {
-          const normalized = raw.replace(/\./g, ",");
-          let parts = normalized.split(","),
-            integer = parts.shift() || "0",
-            decimal = parts.join("").replace(/\D/g, "").slice(0, 2);
-          integer = integer.replace(/\D/g, "").replace(/^0+(?=\d)/, "") || "0";
-          integer = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-          return `R$ ${integer},${decimal}`;
-        }
-        const digits = raw.replace(/\D/g, "");
-        if (!digits) return "";
-        const padded = digits.padStart(3, "0"),
-          decimal = padded.slice(-2),
-          integer = (
-            padded.slice(0, -2).replace(/^0+(?=\d)/, "") || "0"
-          ).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-        return `R$ ${integer},${decimal}`;
+        raw = raw.replace(/^0+/, "") || "0";
+        raw = raw.padStart(3, "0");
+        let cents = raw.slice(-2),
+          integer = raw.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        return `R$ ${integer},${cents}`;
       },
       parseCost = (value) => {
-        let raw = String(value ?? "")
-          .replace(/^R\$\s*/, "")
-          .trim();
-        if (!raw) return 0;
-        if (raw.includes(",")) raw = raw.replace(/\./g, "").replace(",", ".");
-        else if (raw.includes(".")) {
-          const parts = raw.split(".");
-          if (parts.length > 2) raw = raw.replace(/\./g, "");
-          else if (parts[1]?.length === 3) raw = raw.replace(".", "");
-        }
-        const n = Number(raw.replace(/[^\d.-]/g, ""));
-        return Number.isFinite(n) ? n : 0;
+        const raw = String(value ?? "").replace(/\D/g, "");
+        return raw ? Number(raw) / 100 : 0;
       };
     costInput.addEventListener("input", () => {
-      const old = costInput.value,
-        pos = costInput.selectionStart || old.length;
-      costInput.value = formatCost(old);
-      const diff = costInput.value.length - old.length;
+      const digits = costInput.value.replace(/\D/g, "");
+      if (!digits) {
+        costInput.value = "";
+        return;
+      }
+      costInput.value = formatCost(digits);
       requestAnimationFrame(() => {
         try {
-          const p = Math.max(0, Math.min(costInput.value.length, pos + diff));
-          costInput.setSelectionRange(p, p);
+          costInput.setSelectionRange(
+            costInput.value.length,
+            costInput.value.length,
+          );
         } catch {}
       });
     });
-    costInput.addEventListener("blur", () => {
-      const n = parseCost(costInput.value);
-      if (n > 0) costInput.value = money(n);
-    });
     costInput.addEventListener("keydown", (e) => {
       if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
+    });
+    costInput.addEventListener("paste", (e) => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData("text"),
+        digits = text.replace(/\D/g, "");
+      costInput.value = digits ? formatCost(digits) : "";
+      requestAnimationFrame(() => {
+        try {
+          costInput.setSelectionRange(
+            costInput.value.length,
+            costInput.value.length,
+          );
+        } catch {}
+      });
     });
     const renderItems = () => {
       itemsRoot.innerHTML = items.length
