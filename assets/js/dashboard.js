@@ -337,14 +337,18 @@ async function loadOverview() {
     ordersEl.textContent = String(ordersCountResult.count ?? 0);
   }
 
-  const ordersNavCount = document.querySelector("#orders-nav-count");
+const ordersNavCount = document.querySelector("#orders-nav-count");
 
-  if (!ordersCountResult.error && ordersNavCount) {
-    const totalOrders = Number(ordersCountResult.count ?? 0);
+if (!ordersCountResult.error && ordersNavCount) {
+  const totalOrders = Number(ordersCountResult.count ?? 0);
 
-    ordersNavCount.textContent = String(totalOrders);
-    ordersNavCount.hidden = totalOrders === 0;
-  }
+  ordersNavCount.textContent = String(totalOrders);
+  ordersNavCount.hidden = totalOrders === 0;
+}
+
+if (!productsResult.error && productsEl) {
+  productsEl.textContent = String(productsResult.count ?? 0);
+}
   F;
 
   if (!productsResult.error && productsEl) {
