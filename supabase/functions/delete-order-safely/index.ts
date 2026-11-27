@@ -55,11 +55,54 @@ async function verifyNoGatewayPayment(orderId: string, payments: any[]) {
       return { ok: false as const, message: "O Mercado Pago retornou muitos registros para uma validação segura. O pedido foi mantido; arquive-o." };
     }
 
-    const financialOrActivePayment = results.find((item: any) =>
+    // Não confia apenas no filtro da API: valida novamente a referência exata do pedido.
+    const orderPayments = results.filter((item: any) =>
+      String(item?.external_reference || "") === orderId
+    );
+
+    // Se o gateway já aprovou, sincroniza o pagamento no banco antes de bloquear a exclusão.
+    // Isso corrige casos em que o webhook não chegou ou falhou.
+    const approvedPayments = orderPayments.filter((item: any) =>
+      String(item?.status || "").toLowerCase() === "approved"
+    );
+
+    for (const approved of approvedPayments) {
+      const paymentId = String(approved?.id || "");
+      const amount = Number(approved?.transaction_amount);
+      const currency = String(approved?.currency_id || "");
+
+      if (!paymentId || !Number.isFinite(amount) || amount <= 0 || currency !== "BRL") {
+        return { ok: false as const, message: "O Mercado Pago confirmou uma aprovação, mas os dados retornados não passaram na validação. O pedido foi mantido; arquive-o e confira o pagamento." };
+      }
+
+      const { error: syncError } = await admin.rpc("apply_mercadopago_payment", {
+        p_event_id: `admin-reconcile:${paymentId}:${crypto.randomUUID()}`,
+        p_payment_id: paymentId,
+        p_order_id: orderId,
+        p_status: "approved",
+        p_amount: amount,
+        p_currency: currency,
+      });
+
+      if (syncError) {
+        console.error("Mercado Pago approved payment reconciliation failed", {
+          orderId,
+          paymentId,
+          message: syncError.message,
+        });
+        return { ok: false as const, message: "O pagamento consta como aprovado no Mercado Pago, mas não foi possível sincronizá-lo no banco. O pedido foi mantido; arquive-o e confira o histórico financeiro." };
+      }
+    }
+
+    const financialOrActivePayment = orderPayments.find((item: any) =>
       !["rejected", "cancelled"].includes(String(item?.status || "").toLowerCase())
     );
     if (financialOrActivePayment) {
-      return { ok: false as const, message: `O Mercado Pago encontrou uma cobrança com status "${financialOrActivePayment.status}". O pedido não foi excluído; arquive-o.` };
+      const status = String(financialOrActivePayment.status || "desconhecido").toLowerCase();
+      const message = status === "approved"
+        ? "O pagamento aprovado foi sincronizado no sistema. O pedido não pode ser excluído; arquive-o para preservar o histórico financeiro."
+        : `O Mercado Pago encontrou uma cobrança com status "${status}". O pedido não foi excluído; arquive-o.`;
+      return { ok: false as const, message };
     }
 
     const preferenceResponse = await mpRequest(`/checkout/preferences/${encodeURIComponent(payment.provider_reference)}`);
