@@ -77,7 +77,7 @@ function openCheckout(){
     <form id="store-checkout-form" class="checkout-form">
       <div class="checkout-section"><h3>Seus dados</h3><div class="checkout-fields">
         <label>Nome completo<input name="name" autocomplete="name" maxlength="120" required></label>
-        <label>Telefone<input name="phone" type="tel" autocomplete="tel" placeholder="(11) 99999-9999" required></label>
+        <label>Telefone<input name="phone" type="tel" autocomplete="tel" placeholder="(18) 99999-9999" required></label>
         <label class="checkout-wide">E-mail (opcional)<input name="email" type="email" autocomplete="email" maxlength="254" placeholder="voce@email.com"></label>
       </div></div>
       <div class="checkout-section"><h3>Como deseja receber?</h3><label class="checkout-wide">Recebimento<select name="fulfillment" id="checkout-fulfillment" required>${deliveryOptions}</select></label>
