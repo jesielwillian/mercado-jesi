@@ -612,3 +612,34 @@ body > .admin-select-menu > .admin-select-option{min-height:35px;padding:8px 11p
 .chart-plot.is-month .chart-bar{width:12px;min-width:12px;border-radius:4px 4px 1px 1px}
 .chart-plot.is-month .chart-column small{font-size:7px}
 @media(max-width:480px){.chart-period-label{font-size:9px}.chart-period-label select{padding:7px 5px;max-width:112px}.chart-plot{grid-template-columns:53px minmax(0,1fr);gap:5px}.sales-chart-summary strong{font-size:18px}.sales-chart-summary span{font-size:9px}}
+
+/* Gráfico de vendas — visual refinado e barras proporcionais */
+.sales-chart{min-width:0;margin-top:16px}
+.sales-chart-summary{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:0 0 20px}
+.sales-chart-summary>div{display:grid;gap:4px}
+.sales-chart-kicker{color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.12em}
+.sales-chart-summary strong{font-size:clamp(22px,3vw,28px);line-height:1.1;letter-spacing:-.045em;color:var(--green-dark)}
+.sales-chart-count{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid #e2eee6;border-radius:999px;background:#f5faf6;color:#547461;font-size:10px;white-space:nowrap}
+.sales-chart-count i{color:#25965b}
+.chart-plot{height:224px;display:grid;grid-template-columns:66px minmax(0,1fr);gap:10px;position:relative;padding:8px 0 30px;background:repeating-linear-gradient(to bottom,transparent 0,transparent 51px,#edf2ee 52px);border-radius:12px 12px 0 0}
+.chart-y-labels{display:flex;flex-direction:column;justify-content:space-between;padding:0 0 31px;color:var(--muted);font-size:9px;font-variant-numeric:tabular-nums;overflow:hidden}
+.chart-columns{display:flex;align-items:stretch;justify-content:space-around;gap:clamp(5px,1.2vw,12px);min-width:0;height:100%;overflow-x:auto;overflow-y:hidden;border-bottom:1px solid #dce8df;scrollbar-width:thin;scrollbar-color:#a8cbb4 transparent}
+.chart-column{flex:1 0 24px;min-width:24px;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;position:relative}
+.chart-bar-area{width:100%;height:calc(100% - 29px);display:flex;align-items:flex-end;justify-content:center}
+.chart-bar{display:block;flex:0 0 auto;width:13px;max-width:72%;min-height:0;border-radius:7px 7px 2px 2px;background:linear-gradient(180deg,#80d5a0 0%,#26945a 65%,#176b43 100%);box-shadow:0 3px 9px rgba(23,107,67,.13);transition:height .28s ease,filter .2s ease}
+.chart-bar.has-value{min-height:3px}
+.chart-column:hover .chart-bar{filter:brightness(1.08);box-shadow:0 4px 13px rgba(23,107,67,.25)}
+.chart-day-label{height:29px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;color:#718579;line-height:1}
+.chart-day-label span{text-transform:lowercase;font-size:8px;font-weight:700}
+.chart-day-label small{font-size:9px;font-weight:800;color:#405c4b}
+.chart-plot.is-month .chart-columns{justify-content:flex-start;gap:9px;padding:0 10px 0 2px}
+.chart-plot.is-month .chart-column{flex:0 0 25px;min-width:25px}
+.chart-plot.is-month .chart-bar{width:13px}
+.chart-plot.is-month .chart-day-label span{font-size:8px}
+.sales-chart-footnote{display:flex;justify-content:space-between;gap:10px;margin-top:10px;color:var(--muted);font-size:9px}
+.sales-chart-footnote span:first-child{display:inline-flex;align-items:center;gap:6px}
+.sales-chart-footnote i{font-size:7px;color:#26945a}
+.sales-chart-loading{display:flex;align-items:center;gap:9px;padding:45px 10px;color:var(--muted);font-size:11px}
+.loading-dot{width:8px;height:8px;border-radius:50%;background:#26945a;box-shadow:0 0 0 4px #e6f4eb;animation:salesPulse 1s infinite alternate}
+@keyframes salesPulse{to{opacity:.35;transform:scale(.8)}}
+@media(max-width:600px){.sales-chart-summary{align-items:flex-start;flex-direction:column;gap:9px}.chart-plot{grid-template-columns:58px minmax(0,1fr);gap:6px;height:214px}.chart-plot.is-month .chart-columns{gap:8px}.chart-plot.is-month .chart-column{flex-basis:24px;min-width:24px}.sales-chart-footnote{font-size:8px}.sales-chart-count{font-size:9px}}

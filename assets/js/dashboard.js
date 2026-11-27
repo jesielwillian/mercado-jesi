@@ -228,26 +228,27 @@ async function loadSalesChart(days = 7) {
   const chart = document.querySelector("#sales-chart");
   if (!chart || !supabase) return;
 
+  const period = Number(days) === 30 ? 30 : 7;
   const today = new Date();
-  today.setHours(23, 59, 59, 999);
+  today.setHours(0, 0, 0, 0);
   const startDate = new Date(today);
-  startDate.setDate(startDate.getDate() - (days - 1));
-  startDate.setHours(0, 0, 0, 0);
-  const start = startDate.toISOString();
-  const end = new Date(today.getTime() + 1).toISOString();
+  startDate.setDate(startDate.getDate() - (period - 1));
+  const endDate = new Date(today);
+  endDate.setDate(endDate.getDate() + 1);
 
-  chart.innerHTML = '<div class="empty-state compact"><span>Carregando vendas…</span></div>';
+  chart.innerHTML = '<div class="sales-chart-loading"><span class="loading-dot"></span>Carregando movimentações confirmadas…</div>';
 
   try {
     const payments = [];
+    // Busca todos os pagamentos confirmados do intervalo, sem limitar o resultado a 1.000 linhas.
     for (let offset = 0; ; offset += 1000) {
       const { data, error } = await supabase
         .from("payments")
-        .select("amount,paid_at")
+        .select("id,order_id,amount,paid_at")
         .eq("status", "paid")
         .not("paid_at", "is", null)
-        .gte("paid_at", start)
-        .lt("paid_at", end)
+        .gte("paid_at", startDate.toISOString())
+        .lt("paid_at", endDate.toISOString())
         .order("paid_at", { ascending: true })
         .range(offset, offset + 999);
       if (error) throw error;
@@ -256,44 +257,53 @@ async function loadSalesChart(days = 7) {
     }
 
     const totals = new Map();
-    for (let offset = 0; offset < days; offset += 1) {
+    for (let offset = 0; offset < period; offset += 1) {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + offset);
-      totals.set(localDateKey(date), 0);
+      totals.set(localDateKey(date), { date, value: 0 });
     }
+
     payments.forEach((payment) => {
-      const key = localDateKey(new Date(payment.paid_at));
-      if (totals.has(key)) totals.set(key, totals.get(key) + Number(payment.amount || 0));
+      const paidAt = new Date(payment.paid_at);
+      const key = localDateKey(paidAt);
+      const day = totals.get(key);
+      if (day) day.value += Number(payment.amount || 0);
     });
 
-    const values = [...totals.entries()];
-    const max = Math.max(...values.map(([, value]) => value), 0);
+    const values = [...totals.entries()].map(([key, item]) => ({ key, ...item }));
+    const totalReceived = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+    const maxValue = Math.max(...values.map((item) => item.value), 0);
+    // Escala arredondada para não distorcer a comparação entre os dias.
+    const scaleStep = maxValue > 0 ? Math.pow(10, Math.floor(Math.log10(maxValue))) / 2 : 1;
+    const scaleMax = maxValue > 0 ? Math.ceil(maxValue / scaleStep) * scaleStep : 1;
     const currency = (value) => formatMoney(value);
-    const dateLabel = (key, index) => {
-      if (days === 30 && index % 5 !== 0 && index !== values.length - 1) return "";
-      const [, month, day] = key.split("-");
-      return `${day}/${month}`;
-    };
+    const weekday = new Intl.DateTimeFormat("pt-BR", { weekday: "short" });
+    const dayNumber = new Intl.DateTimeFormat("pt-BR", { day: "2-digit" });
+    const fullDate = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
 
-    if (!payments.length) {
-      chart.innerHTML = '<div class="empty-state compact"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><strong>Sem vendas recebidas neste período</strong><span>Assim que houver pagamentos confirmados, eles aparecerão neste gráfico.</span></div>';
-      return;
-    }
-
+    const axisLabels = [scaleMax, scaleMax / 2, 0];
     chart.innerHTML = `
-      <div class="sales-chart-summary"><strong>${currency(payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0))}</strong><span>Total recebido no período</span></div>
-      <div class="chart-plot ${days === 30 ? "is-month" : ""}" role="img" aria-label="Gráfico de valores recebidos nos últimos ${days} dias">
-        <div class="chart-y-labels"><span>${currency(max)}</span><span>${currency(max / 2)}</span><span>R$ 0,00</span></div>
-        <div class="chart-columns">
-          ${values.map(([key, value], index) => {
-            const height = max > 0 ? Math.max(value > 0 ? 4 : 0, (value / max) * 100) : 0;
-            return `<div class="chart-column" title="${key.split("-").reverse().join("/")}: ${currency(value)}"><span class="chart-bar" style="height:${height}%"></span><small>${dateLabel(key, index)}</small></div>`;
+      <div class="sales-chart-summary">
+        <div><span class="sales-chart-kicker">TOTAL RECEBIDO</span><strong>${currency(totalReceived)}</strong></div>
+        <span class="sales-chart-count"><i class="fa-solid fa-circle-check" aria-hidden="true"></i>${payments.length} ${payments.length === 1 ? "pagamento" : "pagamentos"} confirmados</span>
+      </div>
+      <div class="chart-plot ${period === 30 ? "is-month" : ""}" role="group" aria-label="Vendas confirmadas nos últimos ${period} dias">
+        <div class="chart-y-labels" aria-hidden="true">${axisLabels.map((value) => `<span>${currency(value)}</span>`).join("")}</div>
+        <div class="chart-columns" tabindex="0" aria-label="Gráfico por dia. Use as setas para navegar pelos dias.">
+          ${values.map((item) => {
+            const height = maxValue > 0 ? (item.value / scaleMax) * 100 : 0;
+            const label = `${fullDate.format(item.date)}: ${currency(item.value)}`;
+            return `<div class="chart-column" title="${label}" aria-label="${label}">
+              <div class="chart-bar-area"><span class="chart-bar${item.value > 0 ? " has-value" : ""}" style="height:${height.toFixed(2)}%"></span></div>
+              <div class="chart-day-label"><span>${weekday.format(item.date).replace(".", "")}</span><small>${dayNumber.format(item.date)}</small></div>
+            </div>`;
           }).join("")}
         </div>
-      </div>`;
+      </div>
+      <div class="sales-chart-footnote"><span><i class="fa-solid fa-circle" aria-hidden="true"></i> Pagamentos confirmados</span><span>Valores agrupados pela data de recebimento</span></div>`;
   } catch (error) {
     console.error("Falha ao carregar gráfico de vendas:", error);
-    chart.innerHTML = '<div class="empty-state compact"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><strong>Não foi possível carregar o gráfico</strong><span>Verifique a conexão e as permissões de leitura dos pagamentos.</span></div>';
+    chart.innerHTML = '<div class="empty-state compact"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><strong>Não foi possível carregar as vendas</strong><span>Confira a conexão e as permissões de leitura dos pagamentos.</span></div>';
   }
 }
 
