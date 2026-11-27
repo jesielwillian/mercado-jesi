@@ -165,8 +165,8 @@ function render() {
           </div>
 
           <div class="suppliers-field suppliers-field-full">
-            <label for="supplier-notes">Observações</label>
-            <textarea id="supplier-notes" name="notes" maxlength="3000" placeholder="Condições comerciais, prazos, informações importantes..."></textarea>
+            <label for="supplier-notes">Observações <span class="suppliers-optional">(opcional)</span></label>
+            <textarea id="supplier-notes" name="notes" rows="3" maxlength="3000" placeholder="Ex.: Prazo de entrega, condições de pagamento, dias de atendimento ou outras informações importantes..."></textarea>
           </div>
 
           <div class="suppliers-form-actions">
