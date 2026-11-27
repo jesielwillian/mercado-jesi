@@ -5,7 +5,36 @@ import { translateErrorMessage } from "./error-translations.js";
 const grid=document.querySelector("#product-grid"),count=document.querySelector("#result-count"),cartCount=document.querySelector("#cart-count");
 const searchForm=document.querySelector("#search-form"),searchInput=document.querySelector("#search-input"),toast=document.querySelector("#toast");
 const drawer=document.querySelector("#cart-drawer"),backdrop=document.querySelector("#drawer-backdrop"),cartItems=document.querySelector("#cart-items");
-let products=[],cart=[],storeSettings={delivery_fee:0,free_delivery_minimum:0,delivery_enabled:true,pickup_enabled:true};
+const CART_STORAGE_KEY = "mercado-jesi:cart:v1";
+let products=[],cart=restoreCart(),storeSettings={delivery_fee:0,free_delivery_minimum:0,delivery_enabled:true,pickup_enabled:true};
+
+function restoreCart(){
+  try {
+    const raw=localStorage.getItem(CART_STORAGE_KEY);
+    const parsed=raw?JSON.parse(raw):[];
+    if(!Array.isArray(parsed))return [];
+    return parsed.slice(0,100).map(item=>({
+      id:String(item?.id||"").slice(0,100),
+      name:String(item?.name||"Produto").slice(0,180),
+      price:Number.isFinite(Number(item?.price))?Math.max(0,Number(item.price)):0,
+      qty:Math.min(99,Math.max(1,Math.floor(Number(item?.qty)||1))),
+      unit:String(item?.unit||"un.").slice(0,30),
+      category_name:String(item?.category_name||"Mercado").slice(0,100),
+      image_url:""
+    })).filter(item=>item.id);
+  } catch(error) {
+    console.warn("Não foi possível recuperar a sacola salva:",error);
+    return [];
+  }
+}
+
+function persistCart(){
+  try {
+    localStorage.setItem(CART_STORAGE_KEY,JSON.stringify(cart.map(({id,name,price,qty,unit,category_name})=>({id,name,price,qty,unit,category_name}))));
+  } catch(error) {
+    console.warn("Não foi possível salvar a sacola neste navegador:",error);
+  }
+}
 document.querySelector("#year").textContent=new Date().getFullYear();
 const money=value=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(value||0);
 const escapeHtml=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -14,6 +43,7 @@ function notify(message){toast.textContent=message;toast.classList.add("show");s
 function openCart(){drawer.classList.add("open");backdrop.classList.add("open");drawer.setAttribute("aria-hidden","false")}
 function closeCart(){drawer.classList.remove("open");backdrop.classList.remove("open");drawer.setAttribute("aria-hidden","true")}
 function renderCart(){
+  persistCart();
   cartCount.textContent=cart.reduce((sum,item)=>sum+item.qty,0);
   cartItems.innerHTML=cart.length?cart.map(item=>`<div class="cart-line"><div><b>${escapeHtml(item.name)}</b><small>${item.qty} × ${money(item.price)}</small></div><strong>${money(item.qty*item.price)}</strong></div>`).join(""):'<p class="empty-cart">Sua sacola está vazia.</p>';
   document.querySelector("#cart-subtotal").textContent=money(cart.reduce((sum,item)=>sum+item.qty*item.price,0));
@@ -49,7 +79,11 @@ async function loadProducts(){
 grid.addEventListener("click",event=>{
   const button=event.target.closest("[data-add]");if(!button)return;
   const p=products.find(item=>item.id===button.dataset.add);if(!p)return;
-  const existing=cart.find(item=>item.id===p.id);existing?existing.qty++:cart.push({...p,qty:1});
+  const existing=cart.find(item=>item.id===p.id);
+  if(existing){
+    if(existing.qty>=99){notify("Limite de 99 unidades por produto atingido.");return;}
+    existing.qty++;
+  }else cart.push({...p,qty:1});
   renderCart();notify(`${p.name} adicionado à sacola.`);
 });
 searchForm.addEventListener("submit",event=>{event.preventDefault();const q=searchInput.value.trim().toLocaleLowerCase("pt-BR");renderProducts(products.filter(p=>`${p.name} ${p.category_name||""}`.toLocaleLowerCase("pt-BR").includes(q)))});
@@ -92,6 +126,7 @@ function openCheckout(){
         </div>
         <p class="checkout-shipping" id="checkout-shipping-note"></p>
       </div>
+      <div class="checkout-section"><h3>Cupom de desconto</h3><label class="checkout-wide">Código do cupom<input name="coupon_code" maxlength="40" autocomplete="off" placeholder="Ex.: BEMVINDO"></label></div>
       <div class="checkout-section"><h3>Forma de pagamento</h3><div class="checkout-payment">
         <label><input type="radio" name="payment_method" value="pix" checked> Pix pelo Mercado Pago</label>
         <label><input type="radio" name="payment_method" value="card"> Cartão de crédito pelo Mercado Pago</label>
@@ -116,6 +151,21 @@ function openCheckout(){
   }
   fulfillment.addEventListener("change",updateFulfillment);updateFulfillment();
   form.elements.phone.addEventListener("input",event=>{event.target.value=formatBrazilPhone(event.target.value)});
+  const cepInput=form.elements.postal_code;
+  cepInput?.addEventListener("blur",async()=>{
+    const cep=String(cepInput.value||"").replace(/\D/g,"");
+    if(cep.length!==8)return;
+    try{
+      const response=await fetch(`https://viacep.com.br/ws/${cep}/json/`,{headers:{Accept:"application/json"}});
+      if(!response.ok)throw new Error("Falha ao consultar CEP");
+      const address=await response.json();
+      if(address.erro){notify("CEP não encontrado.");return;}
+      for(const [field,value] of [["street",address.logradouro],["neighborhood",address.bairro],["city",address.localidade],["state",address.uf]]){
+        if(value&&!form.elements[field].value)form.elements[field].value=value;
+      }
+      form.elements.number?.focus();
+    }catch(error){console.warn("Consulta de CEP indisponível:",error);}
+  });
   root.querySelector(".checkout-close").addEventListener("click",()=>root.remove());
   root.addEventListener("click",event=>{if(event.target===root)root.remove()});
   form.addEventListener("submit",async event=>{
@@ -128,7 +178,7 @@ function openCheckout(){
     const orderNotes=String(values.notes||"").trim().slice(0,1000);
     if(values.fulfillment==="delivery")customer.address={postal_code:String(values.postal_code||"").replace(/\D/g,""),street:values.street,number:values.number,complement:values.complement,neighborhood:values.neighborhood,city:values.city,state:values.state};
     try{
-      const {data,error}=await supabase.functions.invoke("create-checkout",{body:{customer,items:cart.map(item=>({product_id:item.id,quantity:item.qty})),fulfillment:values.fulfillment,payment_method:values.payment_method,notes:orderNotes}});
+      const {data,error}=await supabase.functions.invoke("create-checkout",{body:{customer,items:cart.map(item=>({product_id:item.id,quantity:item.qty})),fulfillment:values.fulfillment,payment_method:values.payment_method,coupon_code:String(values.coupon_code||"").trim().toUpperCase(),notes:orderNotes}});
       if(error){let message=data?.error||error.message||"Falha ao enviar pedido.";try{const response=await error.context?.json();message=response?.error||message;}catch{}throw new Error(message);}
       if(data?.error)throw new Error(data.error);
       if(data.checkout_url){window.location.assign(data.checkout_url);return;}
@@ -141,6 +191,10 @@ function showCheckoutReturn(){
   const params=new URLSearchParams(location.search),state=params.get("checkout"),number=params.get("order");
   if(!state)return;
   const messages={success:`Pagamento encaminhado para confirmação do pedido #${number||""}.`,pending:`Pagamento pendente para o pedido #${number||""}.`,failure:`O pagamento do pedido #${number||""} não foi concluído. Se necessário, fale com o mercado.`};
+  if(state==="success"){
+    cart=[];
+    renderCart();
+  }
   notify(messages[state]||"Retorno do pagamento recebido.");
   history.replaceState({},document.title,location.pathname+location.hash);
 }

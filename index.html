@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#176b43">
+  <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" type="image/webp" href="./assets/imagens/favicon.webp">
   <link rel="apple-touch-icon" href="./assets/imagens/favicon.webp">
   <meta name="description" content="Mercado Jesi: qualidade, economia e praticidade pertinho de você.">
@@ -156,6 +157,7 @@
   <script type="module" src="./assets/js/app.js"></script>
   <script type="module" src="./assets/js/labels-inert.js"></script>
   <script type="module" src="./assets/js/contact.js"></script>
+  <script>if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(error => console.warn("PWA indisponível:", error)));</script>
 </body>
 
 </html>

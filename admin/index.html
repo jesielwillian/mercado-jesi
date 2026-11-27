@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#176b43">
+  <link rel="manifest" href="../manifest.webmanifest">
   <link rel="icon" type="image/webp" href="../assets/imagens/favicon.webp">
   <link rel="apple-touch-icon" href="../assets/imagens/favicon.webp"><title>Administração | Mercado Jesi</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -27,5 +28,6 @@
   </main>
   <script type="module" src="../assets/js/labels-inert.js"></script>
   <script type="module" src="../assets/js/admin-login.js"></script>
+  <script>if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(error => console.warn("PWA indisponível:", error)));</script>
 </body>
 </html>

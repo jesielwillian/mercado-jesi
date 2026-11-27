@@ -2,22 +2,6 @@ import "./admin-selects.js";
 import "./currency-mask.js";
 import { translateErrorMessage } from "./error-translations.js";
 import { supabase, isSupabaseConfigured } from "./supabase.js";
-import { mountProductsAdmin } from "./products-admin.js";
-import { mountMessagesAdmin } from "./messages-admin.js";
-import { mountCategoriesAdmin } from "./categories-admin.js";
-import { mountOrdersAdmin } from "./orders-admin.js";
-import { mountInventoryAdmin } from "./inventory-admin.js";
-import { mountPosAdmin } from "./pos-admin.js";
-import { mountCashAdmin } from "./cash-admin.js";
-import { mountCustomersAdmin } from "./customers-admin.js";
-import { mountSuppliersAdmin } from "./suppliers-admin.js";
-import {
-  mountCouponsAdmin,
-  mountFinanceAdmin,
-  mountReportsAdmin,
-  mountUsersAdmin,
-  mountSettingsAdmin,
-} from "./business-admin.js";
 
 const pageTitle = document.querySelector("#page-title");
 const breadcrumb = document.querySelector("#breadcrumb-current");
@@ -36,24 +20,41 @@ function renderNotifications(items = []) {
   notificationCache = items;
   if (!notificationList) return;
 
+  notificationList.replaceChildren();
+
   if (!items.length) {
-    notificationList.innerHTML = `
-      <div class="notification-empty">
-        <i class="fa-regular fa-bell-slash"></i>
-        <span>Nenhuma novidade por enquanto.</span>
-      </div>`;
+    const empty = document.createElement("div");
+    empty.className = "notification-empty";
+    const icon = document.createElement("i");
+    icon.className = "fa-regular fa-bell-slash";
+    icon.setAttribute("aria-hidden", "true");
+    const message = document.createElement("span");
+    message.textContent = "Nenhuma novidade por enquanto.";
+    empty.append(icon, message);
+    notificationList.appendChild(empty);
     return;
   }
 
-  notificationList.innerHTML = items.map(item => `
-    <button type="button" class="notification-item" data-notification="messages">
-      <i class="${item.icon}"></i>
-      <span>
-        <b>${item.title}</b>
-        <small>${item.text}</small>
-      </span>
-    </button>
-  `).join("");
+  items.forEach(item => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "notification-item";
+    button.dataset.notification = "messages";
+
+    const icon = document.createElement("i");
+    // A classe do ícone é definida internamente, nunca vem do banco.
+    icon.className = "fa-solid fa-envelope";
+    icon.setAttribute("aria-hidden", "true");
+
+    const content = document.createElement("span");
+    const title = document.createElement("b");
+    const description = document.createElement("small");
+    title.textContent = String(item.title ?? "Nova mensagem");
+    description.textContent = String(item.text ?? "");
+    content.append(title, description);
+    button.append(icon, content);
+    notificationList.appendChild(button);
+  });
 }
 
 async function loadNotifications() {
@@ -181,6 +182,7 @@ const pageNames = {
   coupons: "Cupons e ofertas",
   finance: "Financeiro",
   reports: "Relatórios",
+  operations: "Operações avançadas",
   users: "Usuários e permissões",
   settings: "Configurações",
 };
@@ -449,8 +451,30 @@ async function loadOverview() {
   }
 }
 
-function showModule(key) {
+const adminModuleLoaders = {
+  orders: () => import("./orders-admin.js"),
+  cash: () => import("./cash-admin.js"),
+  customers: () => import("./customers-admin.js"),
+  suppliers: () => import("./suppliers-admin.js"),
+  coupons: () => import("./business-admin.js"),
+  finance: () => import("./business-admin.js"),
+  reports: () => import("./business-admin.js"),
+  users: () => import("./business-admin.js"),
+  settings: () => import("./business-admin.js"),
+  pos: () => import("./pos-admin.js"),
+  inventory: () => import("./inventory-admin.js"),
+  products: () => import("./products-admin.js"),
+  categories: () => import("./categories-admin.js"),
+  messages: () => import("./messages-admin.js"),
+  operations: () => import("./operations-admin.js"),
+};
+
+const loadedAdminModules = new Map();
+let moduleNavigationSequence = 0;
+
+async function showModule(key) {
   const title = pageNames[key] || "Visão geral";
+  const navigationSequence = ++moduleNavigationSequence;
 
   pageTitle.textContent = title;
   breadcrumb.textContent = title;
@@ -464,151 +488,81 @@ function showModule(key) {
     return;
   }
 
-  if (key === "orders") {
-    mountOrdersAdmin({ content, notify });
-    return;
-  }
+  const loader = adminModuleLoaders[key];
+  if (loader) {
+    content.setAttribute("aria-busy", "true");
+    content.innerHTML = '<div class="panel module-loading" role="status">Carregando módulo...</div>';
 
-  if (key === "cash") {
-    mountCashAdmin({ content, notify });
-    return;
-  }
+    try {
+      let modulePromise = loadedAdminModules.get(key);
+      if (!modulePromise) {
+        modulePromise = loader();
+        loadedAdminModules.set(key, modulePromise);
+      }
 
-  if (key === "customers") {
-    mountCustomersAdmin({ content, notify });
-    return;
-  }
+      const module = await modulePromise;
+      // Evita que um carregamento lento sobrescreva a tela escolhida depois.
+      if (navigationSequence !== moduleNavigationSequence) return;
 
-  if (key === "suppliers") {
-    mountSuppliersAdmin({ content, notify });
-    return;
-  }
+      const mounters = {
+        orders: () => module.mountOrdersAdmin({ content, notify }),
+        cash: () => module.mountCashAdmin({ content, notify }),
+        customers: () => module.mountCustomersAdmin({ content, notify }),
+        suppliers: () => module.mountSuppliersAdmin({ content, notify }),
+        coupons: () => module.mountCouponsAdmin({ content, notify }),
+        finance: () => module.mountFinanceAdmin({ content, notify }),
+        reports: () => module.mountReportsAdmin({ content, notify }),
+        users: () => module.mountUsersAdmin({ content, notify }),
+        settings: () => module.mountSettingsAdmin({ content, notify }),
+        pos: () => module.mountPosAdmin({ content, notify }),
+        inventory: () => module.mountInventoryAdmin({ content, notify }),
+        products: () => module.mountProductsAdmin(),
+        categories: () => module.mountCategoriesAdmin({ content, notify }),
+        messages: () => module.mountMessagesAdmin({ notify }),
+        operations: () => module.mountOperationsAdmin({ content, notify }),
+      };
 
-  if (key === "coupons") {
-    mountCouponsAdmin({ content, notify });
-    return;
-  }
-
-  if (key === "finance") {
-    mountFinanceAdmin({ content, notify });
-    return;
-  }
-
-  if (key === "reports") {
-    mountReportsAdmin({ content, notify });
-    return;
-  }
-
-  if (key === "users") {
-    mountUsersAdmin({ content, notify });
-    return;
-  }
-
-  if (key === "settings") {
-    mountSettingsAdmin({ content, notify });
-    return;
-  }
-
-  if (key === "pos") {
-    mountPosAdmin({ content, notify });
-    return;
-  }
-
-  if (key === "inventory") {
-    mountInventoryAdmin({ content, notify });
-    return;
-  }
-
-  if (key === "products") {
-    mountProductsAdmin();
-    return;
-  }
-
-  if (key === "categories") {
-    mountCategoriesAdmin({ content, notify });
-    return;
-  }
-
-  if (key === "messages") {
-    mountMessagesAdmin({ notify });
+      mounters[key]();
+    } catch (error) {
+      loadedAdminModules.delete(key);
+      console.error(`Erro ao carregar o módulo ${key}:`, error);
+      if (navigationSequence === moduleNavigationSequence) {
+        content.innerHTML = '<div class="panel module-error" role="alert">Não foi possível carregar este módulo. Atualize a página e tente novamente.</div>';
+      }
+    } finally {
+      if (navigationSequence === moduleNavigationSequence) {
+        content.removeAttribute("aria-busy");
+      }
+    }
     return;
   }
 
   const descriptions = {
-    orders:
-      "Acompanhe pedidos da loja virtual, atualize etapas de separação, retirada e entrega.",
-
-    products:
-      "Cadastre mercadorias, SKU, código de barras, unidade de venda, preço, custo e fotos.",
-
-    categories:
-      "Organize o catálogo em categorias e subcategorias para facilitar a navegação.",
-
-    inventory:
-      "Consulte saldo, estoque mínimo, validade, entradas, perdas e ajustes com histórico.",
-
+    orders: "Acompanhe pedidos da loja virtual, atualize etapas de separação, retirada e entrega.",
+    products: "Cadastre mercadorias, SKU, código de barras, unidade de venda, preço, custo e fotos.",
+    categories: "Organize o catálogo em categorias e subcategorias para facilitar a navegação.",
+    inventory: "Consulte saldo, estoque mínimo, validade, entradas, perdas e ajustes com histórico.",
     pos: "Registre vendas presenciais, identifique produtos, aplique descontos autorizados e finalize pagamentos.",
-
-    cash: "Abertura e fechamento de caixa, sangrias, suprimentos e conferência por forma de pagamento.",
-
-    customers:
-      "Consulte clientes, contatos, endereços, pedidos e histórico de relacionamento.",
-
-    messages:
-      "Leia, organize, responda por e-mail, arquive e exclua as mensagens enviadas pelo formulário da loja.",
-
-    suppliers:
-      "Gerencie fornecedores, contatos, condições comerciais e compras.",
-
-    coupons:
-      "Crie cupons, campanhas, descontos por período e ofertas especiais.",
-
-    finance: "Acompanhe receitas, despesas, contas e resultados operacionais.",
-
-    reports:
-      "Analise vendas por período, produtos, categorias, margem, estoque e desempenho.",
-
-    users: "Gerencie funcionários, perfis de acesso e permissões por módulo.",
-
-    settings:
-      "Configure dados da loja, horários, entrega, retirada, pagamentos e identidade visual.",
   };
 
   content.innerHTML = `
-    <div class="welcome-row">
+    <div class="module-intro">
       <div>
         <span class="eyebrow">GESTÃO DO MERCADO JESI</span>
         <h2>${title}</h2>
-        <p>${descriptions[key]}</p>
+        <p>${descriptions[key] || "Área administrativa."}</p>
       </div>
     </div>
-
     <article class="panel module-placeholder">
       <div class="panel-heading">
-        <div>
-          <h3>Módulo ${title}</h3>
-          <p>Estrutura preparada para integração com o Supabase.</p>
-        </div>
-
+        <div><h3>Módulo ${title}</h3><p>Estrutura preparada para integração com o Supabase.</p></div>
         <span class="status pending">Sem integração</span>
       </div>
+      <p class="module-help">Este módulo ainda não possui operações conectadas ao banco. Não há dados fictícios nesta tela.</p>
+      <button class="text-button" id="module-back"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Voltar à visão geral</button>
+    </article>`;
 
-      <p class="module-help">
-        Este módulo ainda não possui operações conectadas ao banco.
-        Não há dados fictícios nesta tela. Para habilitá-lo,
-        é necessário implementar a tabela, as políticas RLS
-        e as operações correspondentes no Supabase.
-      </p>
-
-      <button class="text-button" id="module-back">
-        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Voltar à visão geral
-      </button>
-    </article>
-  `;
-
-  document
-    .querySelector("#module-back")
-    .addEventListener("click", () => showModule("overview"));
+  document.querySelector("#module-back")?.addEventListener("click", () => showModule("overview"));
 }
 
 document.querySelector(".side-nav").addEventListener("click", (event) => {

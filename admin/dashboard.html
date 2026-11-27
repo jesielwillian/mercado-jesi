@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#176b43">
+  <link rel="manifest" href="../manifest.webmanifest">
   <link rel="icon" type="image/webp" href="../assets/imagens/favicon.webp">
   <link rel="apple-touch-icon" href="../assets/imagens/favicon.webp"><title>Painel de Gestão | Mercado Jesi</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -32,6 +33,7 @@
       <span class="nav-label">GESTÃO</span>
       <button class="nav-item" data-page="finance"><span><i class="fa-solid fa-receipt" aria-hidden="true"></i></span> Financeiro</button>
       <button class="nav-item" data-page="reports"><span><i class="fa-solid fa-chart-column" aria-hidden="true"></i></span> Relatórios</button>
+      <button class="nav-item" data-page="operations"><span><i class="fa-solid fa-gears" aria-hidden="true"></i></span> Operações avançadas</button>
       <button class="nav-item" data-page="users"><span><i class="fa-solid fa-users" aria-hidden="true"></i></span> Usuários e permissões</button>
       <button class="nav-item" data-page="settings"><span><i class="fa-solid fa-gear" aria-hidden="true"></i></span> Configurações</button>
     </nav>
@@ -68,5 +70,6 @@
   <script type="module" src="../assets/js/phone-mask.js"></script>
   <script type="module" src="../assets/js/labels-inert.js"></script>
   <script type="module" src="../assets/js/dashboard.js"></script>
+  <script>if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(error => console.warn("PWA indisponível:", error)));</script>
 </body>
 </html>

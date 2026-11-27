@@ -11,10 +11,9 @@ Loja virtual e sistema de gestão para mercearia, com frontend HTML/CSS/JavaScri
 ## Começar
 
 1. Crie um projeto em https://supabase.com/dashboard.
-2. No SQL Editor, execute `supabase/migrations/0001_initial_schema.sql`.
-3. Execute, em ordem, todas as migrations `0002_seed_categories.sql` até `0007_manage_stock.sql`. Elas criam categorias, mensagens, PDV/caixa, configurações, perfis de equipe e a função transacional de movimentação de estoque.
-4. Em Project Settings > API, copie a Project URL e a chave publishable (ou anon).
-5. Preencha `assets/js/config.js`.
+2. No SQL Editor, execute todas as migrations de `supabase/migrations/` em ordem numérica, de `0001_initial_schema.sql` até `0021_advanced_operations.sql`. Não reaplique migrations já executadas.
+3. Em Project Settings > API, copie a Project URL e a chave publishable (ou anon).
+4. Preencha `assets/js/config.js` com esses valores públicos.
 5. Sirva a pasta por HTTP. Exemplo com VS Code Live Server ou `npx serve .`.
 
 ## Criar o primeiro administrador
@@ -70,7 +69,7 @@ A página inicial possui a seção **Contato** com nome, e-mail, telefone, assun
 
 ## Estado de implementação revisado
 
-- Vitrine pública: catálogo conectado à view `storefront_products`; sacola funciona no navegador, mas o checkout público ainda não cria pedidos nem recebe pagamentos.
+- Vitrine pública: catálogo conectado à view `storefront_products`; sacola persistente e checkout via Edge Function `create-checkout`, com validação de preço/estoque no servidor. Pagamentos dependem dos secrets e do deploy das funções.
 - Login e sessão administrativa: Supabase Auth + `profiles` + RLS.
 - Produtos e categorias: CRUD conectado ao Supabase; imagens usam o Storage `product-images`.
 - Pedidos: consulta e atualização de status conectadas ao Supabase.
@@ -81,14 +80,14 @@ A página inicial possui a seção **Contato** com nome, e-mail, telefone, assun
 
 ## Checklist antes de produção
 
-1. Aplicar todas as migrations em ordem, incluindo `0007_manage_stock.sql` e `0008_store_checkout_delivery.sql`.
+1. Aplicar todas as migrations ainda pendentes em ordem numérica, atualmente até `0021_advanced_operations.sql`.
 2. Publicar as Edge Functions e cadastrar os secrets do Mercado Pago e o domínio HTTPS conforme a seção de checkout acima.
 3. Validar RLS por perfil, políticas de Storage, concorrência de estoque, fechamento de caixa e permissões de cada papel.
 4. Testar compra de ponta a ponta em ambiente de teste do Mercado Pago: Pix aprovado/pendente, cartão aprovado/recusado, webhook repetido, falha de gateway e cancelamento.
 5. Configurar domínio/HTTPS, backups, monitoramento, política de privacidade e rotina de suporte a pagamentos pendentes/estornos.
 6. Definir uma rotina de conciliação da maquininha para pagamentos presenciais e lançar as vendas de entrega no controle financeiro conforme a operação da loja.
 
-O checkout e as funções estão preparados no código, mas não são ativados na conta remota até que a migration 0008 seja aplicada, as Edge Functions sejam publicadas e os secrets reais sejam cadastrados. Não foi feita conexão administrativa nem execução remota no Supabase ou no Mercado Pago nesta entrega.
+O checkout e as funções estão preparados no código, mas não são ativados na conta remota até que todas as migrations necessárias sejam aplicadas, as Edge Functions sejam publicadas e os secrets reais sejam cadastrados. Não foi feita conexão administrativa nem execução remota no Supabase ou no Mercado Pago nesta entrega.
 
 ## Ajustes de integridade e navegação (versão 2026-11-22)
 
@@ -100,6 +99,17 @@ O checkout e as funções estão preparados no código, mas não são ativados n
 - O login inclui visualização temporária da senha enquanto o botão do olho estiver pressionado.
 - Font Awesome 6.7.2 foi padronizado nos ícones principais da loja, login e navegação administrativa.
 
+
+## Melhorias técnicas incluídas (2026-11-27)
+
+- A sacola da loja é persistida no `localStorage` por versão e recuperada após atualizar a página. O servidor continua sendo a fonte de verdade para preço, disponibilidade e estoque no checkout.
+- Os módulos administrativos são carregados sob demanda com `import()`, evitando baixar todos os módulos de gestão na abertura do painel. A navegação ignora carregamentos antigos quando o usuário troca de tela rapidamente.
+- As notificações administrativas criam elementos DOM e usam `textContent` para os dados de mensagens, evitando interpretar conteúdo enviado por visitantes como HTML executável.
+- `vercel.json` adiciona cabeçalhos HTTP de segurança e políticas de cache distintas para arquivos estáticos e documentos HTML.
+- CORS das Edge Functions deixa de aceitar qualquer origem. Configure o secret `CORS_ALLOWED_ORIGIN` com a origem HTTPS exata da loja (por exemplo, `https://mercadojesi.com.br`). Se não configurado, o código usa `SITE_URL`. Ambientes de homologação devem usar sua própria configuração de origem.
+
+Esses ajustes são alterações de código. A aplicação dos secrets, publicação das Edge Functions, configuração do domínio e validação no projeto Supabase/Vercel continuam exigindo acesso aos respectivos painéis e testes no ambiente real.
+
 ## Executar localmente
 
 Não abra `index.html` por duplo clique (`file://`). Abra a pasta no VS Code e use Live Server, ou rode `npx serve .`. Acesse a URL HTTP fornecida pelo servidor, normalmente `http://127.0.0.1:5500/`.
@@ -110,12 +120,13 @@ A migration `0008_store_checkout_delivery.sql` adiciona o checkout público tran
 
 ### Aplicar banco e publicar funções
 
-1. Execute `supabase/migrations/0008_store_checkout_delivery.sql` no SQL Editor do projeto, depois das migrations 0001–0007.
+1. Execute as migrations pendentes em ordem numérica, incluindo `0008_store_checkout_delivery.sql` e as atualizações posteriores até `0020_fix_checkout_order_notes.sql`.
 2. Instale a Supabase CLI e vincule a pasta do projeto: `supabase link --project-ref flnbpysrsjlbnnsvhrpp`.
 3. No Supabase Dashboard, abra **Edge Functions > Secrets** e configure:
    - `MERCADOPAGO_ACCESS_TOKEN`: Access Token da aplicação Mercado Pago (comece com credenciais de teste).
    - `MERCADOPAGO_WEBHOOK_SECRET`: assinatura secreta criada na configuração de Webhooks do Mercado Pago.
    - `SITE_URL`: URL HTTPS pública da loja, sem barra no final (ex.: `https://mercadojesi.com.br`).
+   - `CORS_ALLOWED_ORIGIN`: a mesma origem HTTPS exata da loja, sem caminho ou barra final. Para homologação, configure a origem do ambiente de homologação.
 4. `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` são disponibilizados pelo runtime das Edge Functions. Nunca copie a `service_role` para o navegador ou para `assets/js/config.js`.
 5. Publique as funções:
 
@@ -123,6 +134,8 @@ A migration `0008_store_checkout_delivery.sql` adiciona o checkout público tran
 supabase functions deploy create-checkout
 supabase functions deploy mercadopago-webhook
 supabase functions deploy manage-delivery
+supabase functions deploy create-staff-user
+supabase functions deploy delete-order-safely
 ```
 
 O arquivo `supabase/config.toml` desativa a verificação JWT apenas para `create-checkout` (checkout público) e `mercadopago-webhook` (chamado pelo Mercado Pago). `manage-delivery` exige JWT e valida novamente o perfil/role da equipe antes de permitir alterações.
@@ -185,3 +198,41 @@ Para habilitar a restauração, execute no SQL Editor do Supabase o conteúdo de
 `supabase/migrations/0018_order_restore.sql`
 
 A função exige `public.is_staff()` e não altera registros financeiros.
+
+## Atualizações funcionais — 2026-11-27
+
+### Checkout
+- A sacola persiste no `localStorage` e é normalizada ao recuperar os dados. O servidor continua sendo a fonte de verdade para preço e estoque.
+- O checkout envia o código de cupom à Edge Function `create-checkout`; a validação e o cálculo permanecem no banco/servidor.
+- O CEP pode preencher rua, bairro, cidade e UF pela API pública ViaCEP. A consulta é auxiliar; o cliente deve conferir o endereço antes de enviar.
+
+### Operações avançadas (migration 0021)
+A navegação administrativa ganhou **Operações avançadas**, com:
+- **Compras:** pedido de compra vinculado a fornecedor e produtos. O recebimento usa a RPC `receive_purchase_order` para atualizar estoque, custo médio, movimentação e lote em transação.
+- **Validade e lotes:** consulta de lotes, saldos e alertas para vencidos/próximos do vencimento. Saídas de estoque por venda/perda consomem os lotes rastreados em FIFO; saldo legado sem lote não bloqueia vendas.
+- **Separação Kanban:** quadro de pedidos por etapa, alteração de status e atualização via Supabase Realtime. O link do WhatsApp abre conversa no aplicativo/site, não envia mensagens automaticamente.
+- **Código de barras:** pesquisa por leitor USB/digitação e leitura por câmera quando `BarcodeDetector` está disponível e o site usa HTTPS.
+- **Etiquetas:** montagem de folhas e impressão pelo navegador; códigos EAN-13 com dígito verificador válido são renderizados como barras.
+- **Fidelidade:** crédito automático de 1 ponto a cada R$ 10,00 em pedido concluído vinculado a cliente. O trigger evita creditar o mesmo pedido duas vezes. O resgate de pontos ainda não está habilitado.
+
+### PWA
+- Manifesto instalável e service worker para cache do shell estático.
+- APIs externas (Supabase, gateway de pagamento e ViaCEP) não são armazenadas pelo service worker.
+- O cache offline não permite finalizar pedidos sem conexão.
+
+### Implantação da migration 0021
+1. Faça backup do banco remoto.
+2. Confira se as migrations `0001` a `0020` já foram aplicadas. Não reaplique migrations existentes.
+3. Execute `supabase/migrations/0021_advanced_operations.sql` no SQL Editor do Supabase ou pelo fluxo de migrations do Supabase CLI.
+4. Confira a função `receive_purchase_order`, as políticas RLS e o trigger de pontos em ambiente de homologação.
+5. Habilite Realtime para `public.orders` (a migration tenta incluir a tabela na publicação, se a publicação existir e ainda não contiver a tabela).
+6. Teste compra, recebimento, baixa FIFO, atualização de pedido, pontos e permissões com usuários de cada perfil.
+
+### Limitações que exigem configuração ou decisão operacional
+- WhatsApp: apenas link `wa.me`; envio automatizado exige WhatsApp Business Platform, credenciais e webhook.
+- Pagamentos: exigem credenciais reais/teste do Mercado Pago, secrets e deploy das Edge Functions.
+- Fidelidade: regra inicial de pontos está fixa em 1 ponto/R$ 10 e não há resgate/troca no checkout.
+- Etiquetas: o navegador imprime em folha; o alinhamento deve ser ajustado ao modelo físico de etiqueta.
+- Leitura por câmera depende do navegador/dispositivo; leitor USB continua disponível como teclado.
+- Não há rastreamento público por número de pedido/telefone nesta versão, para evitar expor dados de pedidos sem autenticação/controle de tentativas.
+- Não foi feita publicação remota no Supabase/Vercel nem teste de pagamento real nesta execução.
