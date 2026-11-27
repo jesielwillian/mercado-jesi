@@ -40,6 +40,9 @@ const css = `
 .ba-status{display:inline-block;padding:4px 8px;border-radius:20px;background:rgba(34,197,94,.12);color:#4ade80;font-size:11px}
 .ba-status.off{background:rgba(148,163,184,.12);color:#aeb7c5}
 .ba-note{font-size:12px;line-height:1.5;color:var(--muted,#9298a6)}
+.ba-pagination{justify-content:flex-end;align-items:center;margin-top:14px}
+.ba-pagination .ba-muted{margin-right:auto}
+@media(max-width:560px){.ba-pagination{justify-content:space-between}.ba-pagination .ba-muted{width:100%;order:-1}}
 @media(max-width:850px){.ba-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.ba-grid{grid-template-columns:1fr}.ba-form{grid-template-columns:1fr}.ba-form .wide{grid-column:auto}.ba-card,.ba-panel{padding:14px}}
 `;
@@ -382,98 +385,135 @@ export function mountFinanceAdmin({content, notify}) {
 export function mountReportsAdmin({content, notify}) {
   const root = setup(content, "Relatórios", notify);
   const today = new Date();
+  const pageSize = 25;
+  let currentFrom = "";
+  let currentTo = "";
+  let currentPage = 1;
+  let summaryCache = null;
   const toInputDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
   const defaultFrom = toInputDate(new Date(today.getFullYear(), today.getMonth(), 1));
   const defaultTo = toInputDate(today);
 
-  async function load(from = defaultFrom, to = defaultTo) {
+  async function load(from = defaultFrom, to = defaultTo, page = 1) {
     const startDate = from ? new Date(`${from}T00:00:00`) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const finishDate = to ? new Date(`${to}T23:59:59.999`) : new Date();
-    if (Number.isNaN(startDate.getTime()) || Number.isNaN(finishDate.getTime())) {
-      throw new Error("Informe datas válidas para o período.");
-    }
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(finishDate.getTime())) throw new Error("Informe datas válidas para o período.");
     if (startDate > finishDate) throw new Error("A data inicial deve ser anterior ou igual à data final.");
 
-    // Converte os limites locais para ISO somente após definir o dia completo no fuso do navegador.
+    currentFrom = from;
+    currentTo = to;
+    const safePage = Math.max(1, Number(page) || 1);
     const start = startDate.toISOString();
     const finish = finishDate.toISOString();
+    const cacheKey = `${start}|${finish}`;
+    let summary = summaryCache?.key === cacheKey ? summaryCache.data : null;
+    if (!summary) {
+      const {data: inventoryData, error: inventoryError} = await supabase
+        .from("inventory")
+        .select("quantity,minimum_quantity,products(name,sku)")
+        .limit(2000);
+      if (inventoryError) throw inventoryError;
 
-    const {data: inventoryData, error: inventoryError} = await supabase
-      .from("inventory")
-      .select("quantity,minimum_quantity,products(name,sku)")
-      .limit(2000);
-    if (inventoryError) throw inventoryError;
-
-    const list = [];
-    for (let offset = 0; ; offset += 1000) {
-      const {data, error} = await supabase.from("orders")
-        .select("id,order_number,status,total,created_at,customer_name")
-        .gte("created_at", start)
-        .lte("created_at", finish)
-        .order("created_at", {ascending:false})
-        .range(offset, offset + 999);
-      if (error) throw error;
-      list.push(...(data || []));
-      if (!data || data.length < 1000) break;
-    }
-
-    const products = [];
-    for (let i = 0; i < list.length; i += 100) {
-      const ids = list.slice(i, i + 100).map(order => order.id);
-      for (let offset = 0; ids.length; offset += 1000) {
-        const {data, error} = await supabase.from("order_items")
-          .select("product_name,quantity,line_total,order_id")
-          .in("order_id", ids)
+      // Busca os campos mínimos para calcular indicadores de todo o período.
+      const allOrders = [];
+      for (let offset = 0; ; offset += 1000) {
+        const {data, error} = await supabase.from("orders")
+          .select("id,total,status")
+          .gte("created_at", start)
+          .lte("created_at", finish)
+          .order("created_at", {ascending:false})
           .range(offset, offset + 999);
         if (error) throw error;
-        products.push(...(data || []));
+        allOrders.push(...(data || []));
         if (!data || data.length < 1000) break;
       }
+
+      const products = [];
+      for (let i = 0; i < allOrders.length; i += 100) {
+        const ids = allOrders.slice(i, i + 100).map(order => order.id);
+        if (!ids.length) continue;
+        for (let offset = 0; ; offset += 1000) {
+          const {data, error} = await supabase.from("order_items")
+            .select("product_name,quantity,order_id")
+            .in("order_id", ids)
+            .range(offset, offset + 999);
+          if (error) throw error;
+          products.push(...(data || []));
+          if (!data || data.length < 1000) break;
+        }
+      }
+
+      const counts = {};
+      for (const item of products) {
+        const key = item.product_name || "Produto";
+        counts[key] = (counts[key] || 0) + Number(item.quantity || 0);
+      }
+      summary = {
+        totalOrders: allOrders.length,
+        total: allOrders.reduce((sum, order) => sum + Number(order.total || 0), 0),
+        completed: allOrders.filter(order => order.status === "completed").length,
+        best: Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,10),
+        low: (inventoryData || []).filter(item => Number(item.quantity) <= Number(item.minimum_quantity))
+      };
+      summaryCache = {key: cacheKey, data: summary};
     }
 
-    const total = list.reduce((sum, order) => sum + Number(order.total || 0), 0);
-    const completed = list.filter(order => order.status === "completed").length;
+    const {totalOrders, total, completed, best, low} = summary;
+    const totalPages = Math.max(1, Math.ceil(totalOrders / pageSize));
+    const pageToLoad = Math.min(safePage, totalPages);
+    const pageStart = (pageToLoad - 1) * pageSize;
+    const {data: pageOrders, error: pageError} = await supabase.from("orders")
+      .select("id,order_number,status,total,created_at,customer_name")
+      .gte("created_at", start)
+      .lte("created_at", finish)
+      .order("created_at", {ascending:false})
+      .range(pageStart, pageStart + pageSize - 1);
+    if (pageError) throw pageError;
+
     const reportStatusLabels = {
       pending:"Pendente", confirmed:"Confirmado", preparing:"Em preparação",
       ready:"Pronto para retirada", out_for_delivery:"Saiu para entrega",
       completed:"Concluído", cancelled:"Cancelado", failed:"Falhou", paid:"Pago",
       refunded:"Estornado", processing:"Em processamento", shipped:"Enviado", delivered:"Entregue"
     };
-    const counts = {};
-    for (const item of products) {
-      const key = item.product_name || "Produto";
-      counts[key] = (counts[key] || 0) + Number(item.quantity || 0);
-    }
-    const best = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,10);
-    const low = (inventoryData || []).filter(item => Number(item.quantity) <= Number(item.minimum_quantity));
+    const fromLabel = from || defaultFrom;
+    const toLabel = to || defaultTo;
+    const firstItem = totalOrders ? pageStart + 1 : 0;
+    const lastItem = Math.min(pageStart + (pageOrders || []).length, totalOrders);
+    currentPage = pageToLoad;
 
     root.innerHTML = `
-      <div class="ba-head"><h2>Relatórios</h2><span class="ba-muted">Período selecionado</span></div>
+      <div class="ba-head"><h2>Relatórios</h2><span class="ba-muted">Histórico preservado no banco de dados</span></div>
       <section class="ba-panel"><form class="ba-form" data-form="period">
-        ${field("Data inicial","from",from,"date","required")}
-        ${field("Data final","to",to,"date","required")}
+        ${field("Data inicial","from",fromLabel,"date","required")}
+        ${field("Data final","to",toLabel,"date","required")}
         <div class="ba-actions wide">
           <button class="ba-btn" type="submit" data-apply-period><i class="fa-solid fa-filter" aria-hidden="true"></i> Aplicar período</button>
           <button class="ba-btn secondary" type="button" data-clear-period><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Limpar filtros</button>
         </div>
       </form></section>
       <div class="ba-grid">
-        <article class="ba-card"><small>Pedidos no período</small><strong>${list.length}</strong></article>
+        <article class="ba-card"><small>Pedidos no período</small><strong>${totalOrders}</strong></article>
         <article class="ba-card"><small>Valor total dos pedidos</small><strong>${money(total)}</strong></article>
         <article class="ba-card"><small>Pedidos concluídos</small><strong>${completed}</strong></article>
       </div>
       <section class="ba-panel"><h3>Produtos mais vendidos</h3>
         ${table(["Produto","Quantidade"],best.map(([name,qty])=>`<tr><td>${esc(name)}</td><td>${qty}</td></tr>`).join(""))}
       </section>
-      <section class="ba-panel"><h3>Pedidos recentes do período</h3>
-        ${table(["Pedido","Cliente","Data","Status","Total"],list.slice(0,100).map(order=>`<tr><td>#${esc(order.order_number)}</td><td>${esc(order.customer_name)}</td><td>${date(order.created_at)}</td><td>${esc(reportStatusLabels[order.status]||"Não identificado")}</td><td>${money(order.total)}</td></tr>`).join(""))}
+      <section class="ba-panel"><h3>Histórico de pedidos</h3>
+        <p class="ba-note">Exibindo ${firstItem}–${lastItem} de ${totalOrders} pedidos. Os registros antigos continuam armazenados; use o período para consultar outras datas.</p>
+        ${table(["Pedido","Cliente","Data","Status","Total"],(pageOrders || []).map(order=>`<tr><td>#${esc(order.order_number)}</td><td>${esc(order.customer_name)}</td><td>${date(order.created_at)}</td><td>${esc(reportStatusLabels[order.status]||"Não identificado")}</td><td>${money(order.total)}</td></tr>`).join(""))}
+        <div class="ba-actions ba-pagination" aria-label="Paginação do histórico">
+          <button class="ba-btn secondary" type="button" data-report-page="${pageToLoad - 1}" ${pageToLoad <= 1 ? "disabled" : ""}><i class="fa-solid fa-chevron-left" aria-hidden="true"></i> Anterior</button>
+          <span class="ba-muted">Página ${pageToLoad} de ${totalPages}</span>
+          <button class="ba-btn secondary" type="button" data-report-page="${pageToLoad + 1}" ${pageToLoad >= totalPages ? "disabled" : ""}>Próxima <i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+        </div>
       </section>
       <section class="ba-panel"><h3>Estoque no limite ou abaixo do mínimo</h3>
         ${table(["Produto","SKU","Saldo","Mínimo"],low.map(item=>`<tr><td>${esc(item.products?.name||"Produto")}</td><td>${esc(item.products?.sku||"—")}</td><td>${item.quantity}</td><td>${item.minimum_quantity}</td></tr>`).join(""))}
       </section>`;
   }
 
-  // Delegação no container mantém os eventos funcionais mesmo quando a tela é re-renderizada.
   root.addEventListener("submit", async event => {
     const form = event.target.closest('[data-form="period"]');
     if (!form) return;
@@ -486,7 +526,7 @@ export function mountReportsAdmin({content, notify}) {
     if (from > to) return notify("A data inicial deve ser anterior ou igual à data final.");
     if (submit) { submit.disabled = true; submit.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Aplicando...'; }
     try {
-      await load(from, to);
+      await load(from, to, 1);
       notify("Período aplicado com sucesso.");
     } catch (error) {
       notify(error.message || "Não foi possível aplicar o período.");
@@ -495,11 +535,18 @@ export function mountReportsAdmin({content, notify}) {
   });
 
   root.addEventListener("click", event => {
-    if (!event.target.closest("[data-clear-period]")) return;
-    load(defaultFrom, defaultTo).catch(error => notify(error.message || "Não foi possível limpar os filtros."));
+    const clear = event.target.closest("[data-clear-period]");
+    const pageButton = event.target.closest("[data-report-page]");
+    if (clear) {
+      load(defaultFrom, defaultTo, 1).catch(error => notify(error.message || "Não foi possível limpar os filtros."));
+      return;
+    }
+    if (pageButton && !pageButton.disabled) {
+      load(currentFrom, currentTo, Number(pageButton.dataset.reportPage)).catch(error => notify(error.message || "Não foi possível carregar esta página."));
+    }
   });
 
-  load(defaultFrom, defaultTo).catch(error => errorView(root, error, () => load(defaultFrom, defaultTo)));
+  load(defaultFrom, defaultTo, 1).catch(error => errorView(root, error, () => load(defaultFrom, defaultTo, 1)));
 }
 
 /* USUÁRIOS E PERMISSÕES */
