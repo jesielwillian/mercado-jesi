@@ -593,3 +593,21 @@ html{scrollbar-gutter:stable}
 /* Menus de mensagens abrem acima; demais selects abrem abaixo com espaçamento compacto */
 body > .admin-select-menu{border-radius:12px!important}
 body > .admin-select-menu > .admin-select-option{min-height:35px;padding:8px 11px!important}
+
+/* Gráfico real de vendas da visão geral */
+.chart-period-label{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:10px;white-space:nowrap}
+.chart-period-label select{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff;color:var(--ink);font:inherit}
+.sales-chart{min-width:0;margin-top:12px}
+.sales-chart-summary{display:flex;align-items:baseline;gap:9px;margin:4px 0 15px}
+.sales-chart-summary strong{font-size:21px;letter-spacing:-.04em;color:var(--green-dark)}
+.sales-chart-summary span{font-size:10px;color:var(--muted)}
+.chart-plot{height:190px;display:grid;grid-template-columns:62px minmax(0,1fr);gap:9px;position:relative;padding-bottom:23px;background:repeating-linear-gradient(to bottom,transparent 0,transparent 49px,#edf1ed 50px)}
+.chart-y-labels{display:flex;flex-direction:column;justify-content:space-between;padding:0 0 22px;color:var(--muted);font-size:9px;overflow:hidden}
+.chart-columns{display:flex;align-items:stretch;justify-content:space-around;gap:5px;min-width:0;height:100%;border-bottom:1px solid var(--line)}
+.chart-column{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;position:relative}
+.chart-bar{display:block;width:min(62%,34px);min-height:0;border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,#65b987,#176b43);transition:height .25s ease}
+.chart-column small{position:absolute;bottom:-20px;color:var(--muted);font-size:8px;white-space:nowrap}
+.chart-plot.is-month .chart-columns{gap:2px}
+.chart-plot.is-month .chart-bar{width:70%;border-radius:3px 3px 1px 1px}
+.chart-plot.is-month .chart-column small{font-size:7px}
+@media(max-width:480px){.chart-period-label{font-size:9px}.chart-period-label select{padding:7px 5px;max-width:112px}.chart-plot{grid-template-columns:53px minmax(0,1fr);gap:5px}.sales-chart-summary strong{font-size:18px}.sales-chart-summary span{font-size:9px}}

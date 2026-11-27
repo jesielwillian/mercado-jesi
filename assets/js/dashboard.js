@@ -217,6 +217,86 @@ const formatDate = (value) =>
     timeStyle: "short",
   }).format(new Date(value));
 
+const localDateKey = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+async function loadSalesChart(days = 7) {
+  const chart = document.querySelector("#sales-chart");
+  if (!chart || !supabase) return;
+
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  const startDate = new Date(today);
+  startDate.setDate(startDate.getDate() - (days - 1));
+  startDate.setHours(0, 0, 0, 0);
+  const start = startDate.toISOString();
+  const end = new Date(today.getTime() + 1).toISOString();
+
+  chart.innerHTML = '<div class="empty-state compact"><span>Carregando vendas…</span></div>';
+
+  try {
+    const payments = [];
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await supabase
+        .from("payments")
+        .select("amount,paid_at")
+        .eq("status", "paid")
+        .not("paid_at", "is", null)
+        .gte("paid_at", start)
+        .lt("paid_at", end)
+        .order("paid_at", { ascending: true })
+        .range(offset, offset + 999);
+      if (error) throw error;
+      payments.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
+
+    const totals = new Map();
+    for (let offset = 0; offset < days; offset += 1) {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + offset);
+      totals.set(localDateKey(date), 0);
+    }
+    payments.forEach((payment) => {
+      const key = localDateKey(new Date(payment.paid_at));
+      if (totals.has(key)) totals.set(key, totals.get(key) + Number(payment.amount || 0));
+    });
+
+    const values = [...totals.entries()];
+    const max = Math.max(...values.map(([, value]) => value), 0);
+    const currency = (value) => formatMoney(value);
+    const dateLabel = (key, index) => {
+      if (days === 30 && index % 5 !== 0 && index !== values.length - 1) return "";
+      const [, month, day] = key.split("-");
+      return `${day}/${month}`;
+    };
+
+    if (!payments.length) {
+      chart.innerHTML = '<div class="empty-state compact"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><strong>Sem vendas recebidas neste período</strong><span>Assim que houver pagamentos confirmados, eles aparecerão neste gráfico.</span></div>';
+      return;
+    }
+
+    chart.innerHTML = `
+      <div class="sales-chart-summary"><strong>${currency(payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0))}</strong><span>Total recebido no período</span></div>
+      <div class="chart-plot ${days === 30 ? "is-month" : ""}" role="img" aria-label="Gráfico de valores recebidos nos últimos ${days} dias">
+        <div class="chart-y-labels"><span>${currency(max)}</span><span>${currency(max / 2)}</span><span>R$ 0,00</span></div>
+        <div class="chart-columns">
+          ${values.map(([key, value], index) => {
+            const height = max > 0 ? Math.max(value > 0 ? 4 : 0, (value / max) * 100) : 0;
+            return `<div class="chart-column" title="${key.split("-").reverse().join("/")}: ${currency(value)}"><span class="chart-bar" style="height:${height}%"></span><small>${dateLabel(key, index)}</small></div>`;
+          }).join("")}
+        </div>
+      </div>`;
+  } catch (error) {
+    console.error("Falha ao carregar gráfico de vendas:", error);
+    chart.innerHTML = '<div class="empty-state compact"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><strong>Não foi possível carregar o gráfico</strong><span>Verifique a conexão e as permissões de leitura dos pagamentos.</span></div>';
+  }
+}
+
 async function loadOverview() {
   if (!supabase) return;
 
@@ -351,6 +431,8 @@ async function loadOverview() {
         }).join("")
       : '<tr><td colspan="5">Nenhum pedido registrado.</td></tr>';
   }
+
+  await loadSalesChart(Number(document.querySelector("#sales-chart-period")?.value || 7));
 
   if (errors.length) {
     notify("Alguns indicadores não puderam ser atualizados. Consulte o console para identificar a consulta com erro.");
@@ -598,6 +680,10 @@ async function guardAdmin() {
     notify("Erro ao carregar o painel administrativo.");
   }
 }
+
+document.querySelector("#sales-chart-period")?.addEventListener("change", (event) => {
+  loadSalesChart(Number(event.target.value) || 7);
+});
 
 guardAdmin();
 setTimeout(refreshNotificationState, 1200);
