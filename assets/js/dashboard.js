@@ -31,26 +31,6 @@ const notificationMessagesButton = document.querySelector("#notification-message
 
 let notificationCache = [];
 
-async function loadOrdersNavCount() {
-  const badge = document.querySelector("#orders-nav-count");
-  if (!badge || !supabase) return;
-
-  try {
-    const { count, error } = await supabase
-      .from("orders")
-      .select("id", { count: "exact", head: true })
-      .is("deleted_at", null)
-      .is("archived_at", null);
-
-    if (error) throw error;
-    badge.textContent = String(count ?? 0);
-  } catch (error) {
-    console.warn("Não foi possível atualizar a contagem de pedidos:", error);
-  }
-}
-
-
-
 function renderNotifications(items = []) {
   notificationCache = items;
   if (!notificationList) return;
@@ -606,22 +586,7 @@ async function guardAdmin() {
 
     document.querySelector("#admin-name").textContent = session.user.email;
 
-    await Promise.all([loadOverview(), loadOrdersNavCount()]);
-
-    // Atualiza o contador quando pedidos são criados, alterados ou removidos.
-    supabase
-      .channel("admin-orders-nav-count")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders" },
-        loadOrdersNavCount,
-      )
-      .subscribe();
-
-    // Fallback para alterações feitas enquanto a aba estava em segundo plano.
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) loadOrdersNavCount();
-    });
+    await loadOverview();
   } catch (error) {
     console.error("Erro ao inicializar o painel administrativo:", error);
 

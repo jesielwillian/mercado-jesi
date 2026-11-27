@@ -124,7 +124,7 @@ function openCheckout(){
     button.disabled=true;button.textContent="Registrando pedido...";errorEl.textContent="";
     const values=Object.fromEntries(new FormData(form).entries());
     const customer={name:values.name,phone:values.phone,email:values.email||null};
-    if(values.fulfillment==="delivery")customer.address={postal_code:values.postal_code,street:values.street,number:values.number,complement:values.complement,neighborhood:values.neighborhood,city:values.city,state:values.state};
+    if(values.fulfillment==="delivery")customer.address={postal_code:String(values.postal_code||"").replace(/\D/g,""),street:values.street,number:values.number,complement:values.complement,neighborhood:values.neighborhood,city:values.city,state:values.state};
     try{
       const {data,error}=await supabase.functions.invoke("create-checkout",{body:{customer,items:cart.map(item=>({product_id:item.id,quantity:item.qty})),fulfillment:values.fulfillment,payment_method:values.payment_method,notes:values.notes}});
       if(error){let message=data?.error||error.message||"Falha ao enviar pedido.";try{const response=await error.context?.json();message=response?.error||message;}catch{}throw new Error(message);}
