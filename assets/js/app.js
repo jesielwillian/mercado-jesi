@@ -123,10 +123,11 @@ function openCheckout(){
     const button=form.querySelector(".checkout-submit"),errorEl=root.querySelector("#checkout-error");
     button.disabled=true;button.textContent="Registrando pedido...";errorEl.textContent="";
     const values=Object.fromEntries(new FormData(form).entries());
-    const customer={name:values.name,phone:values.phone,email:values.email||null};
+    const customer={name:String(values.name||"").trim(),phone:String(values.phone||"").trim(),email:String(values.email||"").trim()||null};
+    const orderNotes=String(values.notes||"").trim().slice(0,1000);
     if(values.fulfillment==="delivery")customer.address={postal_code:String(values.postal_code||"").replace(/\D/g,""),street:values.street,number:values.number,complement:values.complement,neighborhood:values.neighborhood,city:values.city,state:values.state};
     try{
-      const {data,error}=await supabase.functions.invoke("create-checkout",{body:{customer,items:cart.map(item=>({product_id:item.id,quantity:item.qty})),fulfillment:values.fulfillment,payment_method:values.payment_method,notes:values.notes}});
+      const {data,error}=await supabase.functions.invoke("create-checkout",{body:{customer,items:cart.map(item=>({product_id:item.id,quantity:item.qty})),fulfillment:values.fulfillment,payment_method:values.payment_method,notes:orderNotes}});
       if(error){let message=data?.error||error.message||"Falha ao enviar pedido.";try{const response=await error.context?.json();message=response?.error||message;}catch{}throw new Error(message);}
       if(data?.error)throw new Error(data.error);
       if(data.checkout_url){window.location.assign(data.checkout_url);return;}

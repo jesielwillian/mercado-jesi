@@ -61,6 +61,10 @@ Deno.serve(async (req) => {
     const body = await req.json();
 
     const customer = body?.customer || {};
+    // Normaliza as observações antes de encaminhá-las à função SQL.
+    const notes = typeof body?.notes === "string"
+      ? body.notes.trim().slice(0, 1000)
+      : "";
 
     const items = Array.isArray(body?.items)
       ? body.items.map((item: any) => ({
@@ -147,7 +151,7 @@ Deno.serve(async (req) => {
         p_items: items,
         p_fulfillment: fulfillment,
         p_payment_method: paymentMethod,
-        p_notes: String(body?.notes || "").slice(0, 1000),
+        p_notes: notes || null,
         p_coupon_code: String(body?.coupon_code || "").slice(0, 40),
       },
     );
