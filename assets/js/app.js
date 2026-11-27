@@ -73,7 +73,7 @@ function openCheckout(){
   const root=document.createElement("div");root.className="checkout-overlay";root.id="checkout-overlay";
   const deliveryOptions=[storeSettings.delivery_enabled?'<option value="delivery">Receber em casa</option>':"",storeSettings.pickup_enabled?'<option value="pickup">Retirar na loja</option>':""].join("");
   root.innerHTML=`<section class="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-title">
-    <div class="checkout-head"><div><span class="eyebrow">MERCADO JESI</span><h2 id="checkout-title">Finalizar pedido</h2></div><button type="button" class="checkout-close" aria-label="Fechar">×</button></div>
+    <div class="checkout-head"><div><span class="eyebrow">MERCADO JESI</span><h2 id="checkout-title">Finalizar pedido</h2></div><button type="button" class="checkout-close" aria-label="Fechar"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
     <form id="store-checkout-form" class="checkout-form">
       <div class="checkout-section"><h3>Seus dados</h3><div class="checkout-fields">
         <label>Nome completo<input name="name" autocomplete="name" maxlength="120" required></label>
@@ -101,7 +101,7 @@ function openCheckout(){
       <div class="checkout-total"><span>Total estimado</span><strong id="checkout-total"></strong></div>
       <p class="checkout-error" id="checkout-error" role="alert"></p>
       <button class="primary-button checkout-submit" type="submit">Confirmar pedido</button>
-      <small class="checkout-privacy">O preço e a disponibilidade serão confirmados pelo sistema antes de registrar o pedido.</small>
+      <small class="checkout-privacy"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span>O preço e a disponibilidade serão confirmados pelo sistema antes de registrar o pedido.</span></small>
     </form></section>`;
   document.body.appendChild(root);
   const form=root.querySelector("#store-checkout-form"),fulfillment=form.elements.fulfillment;
