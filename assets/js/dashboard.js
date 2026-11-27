@@ -319,12 +319,21 @@ async function loadOverview() {
     productsEl.textContent = String(productsResult.count ?? 0);
   }
 
-  if (!inventoryResult.error && stockEl) {
+  if (!inventoryResult.error) {
     const totalStock = inventory.reduce(
       (total, item) => total + Number(item.quantity || 0),
       0,
     );
-    stockEl.textContent = String(totalStock);
+
+    if (stockEl) stockEl.textContent = String(totalStock);
+
+    // O badge do menu Estoque mostra o total de unidades disponíveis,
+    // usando a mesma fonte do indicador de estoque da visão geral.
+    const stockNavCount = document.querySelector("#stock-nav-count");
+    if (stockNavCount) {
+      stockNavCount.textContent = String(totalStock);
+      stockNavCount.hidden = totalStock === 0;
+    }
   }
 
   if (!ordersResult.error && tbody) {
