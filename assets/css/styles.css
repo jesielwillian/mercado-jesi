@@ -1713,6 +1713,19 @@ body>.home-select-menu>.home-select-option:disabled {
     box-shadow: 0 9px 18px rgba(23,107,67,.2);
 }
 
+.add-button-plus {
+    display: inline-block;
+    margin-left: 2px;
+    transform: rotate(0deg);
+    transform-origin: 50% 50%;
+    transition: transform .7s cubic-bezier(.2,.75,.25,1);
+}
+
+.add-button:hover .add-button-plus,
+.add-button:focus-visible .add-button-plus {
+    transform: rotate(380deg);
+}
+
 .add-button:disabled {
     opacity: .48;
     cursor: not-allowed;
@@ -1958,7 +1971,13 @@ body>.home-select-menu>.home-select-option:disabled {
 @media (prefers-reduced-motion: reduce) {
     .product-card,
     .product-image,
-    .product-image img {
+    .product-image img,
+    .add-button-plus {
         transition: none !important;
+    }
+
+    .add-button:hover .add-button-plus,
+    .add-button:focus-visible .add-button-plus {
+        transform: none;
     }
 }

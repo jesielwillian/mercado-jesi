@@ -21,7 +21,7 @@ function renderCart(){
 function renderProducts(items){
   count.textContent=`${items.length} produto(s)`;
   if(!items.length){grid.innerHTML='<div class="loading">Nenhum produto encontrado.</div>';return}
-  grid.innerHTML=items.map(p=>`<article class="product-card"><div class="product-image">${p.image_url?`<img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" loading="lazy">`:"<i class=\"fa-solid fa-bag-shopping\" aria-hidden=\"true\"></i>"}</div><div class="product-info"><span class="product-category">${escapeHtml(p.category_name||"Mercado")}</span><h3>${escapeHtml(p.name)}</h3><div class="product-bottom"><span class="price">${money(p.price)} <small class="unit">/${escapeHtml(displayUnit(p.unit))}</small></span><button class="add-button" data-add="${p.id}" ${p.available===false?"disabled":""}>Adicionar +</button></div></div></article>`).join("");
+  grid.innerHTML=items.map(p=>`<article class="product-card"><div class="product-image">${p.image_url?`<img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" loading="lazy">`:"<i class=\"fa-solid fa-bag-shopping\" aria-hidden=\"true\"></i>"}</div><div class="product-info"><span class="product-category">${escapeHtml(p.category_name||"Mercado")}</span><h3>${escapeHtml(p.name)}</h3><div class="product-bottom"><span class="price">${money(p.price)} <small class="unit">/${escapeHtml(displayUnit(p.unit))}</small></span><button class="add-button" data-add="${p.id}" ${p.available===false?"disabled":""}>Adicionar <span class="add-button-plus" aria-hidden="true">+</span></button></div></div></article>`).join("");
 }
 async function loadProducts(){
   if(!isSupabaseConfigured){
