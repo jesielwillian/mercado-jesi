@@ -73,7 +73,7 @@ function openCheckout(){
   const root=document.createElement("div");root.className="checkout-overlay";root.id="checkout-overlay";
   const deliveryOptions=[storeSettings.delivery_enabled?'<option value="delivery">Receber em casa</option>':"",storeSettings.pickup_enabled?'<option value="pickup">Retirar na loja</option>':""].join("");
   root.innerHTML=`<section class="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-title">
-    <div class="checkout-head"><div><span class="eyebrow">MERCADO JESI</span><h2 id="checkout-title">Finalizar pedido</h2></div><button type="button" class="checkout-close" aria-label="Fechar"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
+    <div class="checkout-head"><div><span class="eyebrow">MERCADO JESI</span><h2 id="checkout-title">Finalizar pedido</h2></div><button type="button" class="checkout-close" aria-label="Fechar">×</button></div>
     <form id="store-checkout-form" class="checkout-form">
       <div class="checkout-section"><h3>Seus dados</h3><div class="checkout-fields">
         <label>Nome completo<input name="name" autocomplete="name" maxlength="120" required></label>

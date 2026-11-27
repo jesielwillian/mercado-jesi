@@ -1215,24 +1215,24 @@ html {
     width: 34px;
     height: 34px;
     padding: 0;
-    border: 0;
+    border: none;
     border-radius: 50%;
     background-color: #176b43;
     color: #fff;
-    font-size: 20px;
+    font-size: 22px;
     cursor: pointer;
-    transition: background-color .2s ease, color .2s ease, transform .35s cubic-bezier(.2,.75,.25,1)
+    transition: transform .2s ease, background-color .2s ease, color .2s ease;
 }
 
 .checkout-close:hover {
-    background-color: var(--yellow);
-    color: #fff;
-    transform: rotate(90deg)
+    transform: rotate(90deg);
+    background: var(--yellow);
+    color: var(--green-dark);
 }
 
 .checkout-close:focus-visible {
-    outline: 3px solid rgba(23, 107, 67, .25);
-    outline-offset: 3px
+    outline: 3px solid rgba(244,214,78,.8);
+    outline-offset: 3px;
 }
 
 .checkout-form {
@@ -1845,7 +1845,8 @@ body>.home-select-menu>.home-select-option:disabled {
     .category-card,
     .category-card span,
     .back-to-top,
-    .cart-head button {
+    .cart-head button,
+    .checkout-close {
         animation: none !important;
         transition: none !important;
     }
