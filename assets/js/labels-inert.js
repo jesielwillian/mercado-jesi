@@ -25,6 +25,9 @@
 
     if (!label) return;
 
+    // No checkout, o texto da opção também deve selecionar o radio associado.
+    if (label.closest('.checkout-payment')) return;
+
     // Cliques nos próprios controles devem continuar funcionando, inclusive
     // no botão que substitui visualmente os selects administrativos.
     const interactive = event.target.closest(
