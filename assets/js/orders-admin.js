@@ -153,6 +153,26 @@ function addStyles() {
     .orders-actions .orders-archive-btn:hover {
       background:#e8f0fc; border-color:#b9cceb; transform:translateY(-1px);
     }
+    .orders-actions .orders-restore-btn {
+      display:inline-flex; align-items:center; justify-content:center;
+      gap:7px; min-height:34px; padding:7px 11px;
+      border:1px solid #cce8d7; border-radius:8px;
+      background:#effaf3; color:#176b43;
+      font-size:.78rem; font-weight:800;
+      transition:background .18s ease, border-color .18s ease, transform .18s ease;
+    }
+    .orders-actions .orders-restore-btn:hover {
+      background:#e1f5e9; border-color:#a8d9bb; transform:translateY(-1px);
+    }
+    .orders-actions .orders-restore-btn:disabled {
+      opacity:.55; cursor:wait; transform:none;
+    }
+    .orders-financial-lock {
+      display:inline-flex; align-items:center; gap:5px;
+      padding:7px 9px; border-radius:8px;
+      background:#f4f5f6; color:#697586;
+      font-size:.74rem; font-weight:800;
+    }
     .orders-empty {
       padding:30px 12px !important;
       text-align:center !important;
@@ -244,11 +264,9 @@ function render() {
     content.querySelector("#orders-view")?.value || "active";
 
   const filtered = orders.filter((order) => {
-    const matchesView = selectedView === "deleted"
-      ? Boolean(order.deleted_at)
-      : selectedView === "archived"
-        ? !order.deleted_at && Boolean(order.archived_at)
-        : !order.deleted_at && !order.archived_at;
+    const matchesView = selectedView === "archived"
+      ? Boolean(order.archived_at)
+      : !order.archived_at;
 
     const matchesQuery =
       `${order.order_number} ${order.customer_name} ${order.customer_phone}`
@@ -305,7 +323,27 @@ function render() {
                     <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
                     Excluir
                   </button>`
-            ) : ""}
+            ) : `
+              <button type="button" class="orders-restore-btn"
+                data-order-restore="${escapeHTML(order.id)}"
+                aria-label="Restaurar pedido #${escapeHTML(order.order_number)}"
+                title="Restaurar pedido para a lista de ativos">
+                <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+                Restaurar
+              </button>
+              ${((order.payments || []).length || (order.cash_transactions || []).length)
+                ? `<span class="orders-financial-lock" title="Pedido protegido por histórico financeiro">
+                    <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+                    Protegido
+                  </span>`
+                : `<button type="button" class="orders-delete-btn"
+                    data-order-delete="${escapeHTML(order.id)}"
+                    aria-label="Excluir definitivamente pedido #${escapeHTML(order.order_number)}"
+                    title="Excluir definitivamente este pedido">
+                    <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+                    Excluir
+                  </button>`}
+            `}
           </td>
         </tr>
       `).join("")
@@ -363,7 +401,6 @@ function renderPage() {
           <select id="orders-view" aria-label="Visualização dos pedidos">
             <option value="active">Pedidos ativos</option>
             <option value="archived">Pedidos arquivados</option>
-            <option value="deleted">Pedidos excluídos</option>
           </select>
           <select id="orders-filter">
             <option value="">Todos os status</option>
@@ -474,7 +511,6 @@ async function loadOrders() {
         created_at,
         updated_at,
         archived_at,
-        deleted_at,
         order_items (
           id,
           product_name,
@@ -679,6 +715,43 @@ async function handleTableAction(event) {
       archiveButton.disabled = false;
       archiveButton.innerHTML = '<i class="fa-solid fa-box-archive" aria-hidden="true"></i> Arquivar';
       notify(error.message || "Não foi possível arquivar o pedido.");
+    }
+    return;
+  }
+
+  const restoreButton = event.target.closest("[data-order-restore]");
+  if (restoreButton) {
+    const order = orders.find((item) => item.id === restoreButton.dataset.orderRestore);
+    if (!order) return;
+
+    const confirmed = window.confirm(
+      `Restaurar o pedido #${order.order_number}?\\n\\n` +
+      "Ele voltará para a lista de pedidos ativos. O histórico financeiro será mantido."
+    );
+    if (!confirmed) return;
+
+    restoreButton.disabled = true;
+    restoreButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Restaurando...';
+
+    try {
+      const { data, error } = await supabase.rpc(
+        "restore_archived_order",
+        { p_order_id: order.id },
+      );
+      if (error) throw error;
+      if (data?.success !== true) {
+        throw new Error(data?.error || "O banco não confirmou a restauração.");
+      }
+
+      order.archived_at = null;
+      updateSummary();
+      render();
+      notify(`Pedido #${order.order_number} restaurado para os pedidos ativos.`);
+    } catch (error) {
+      console.error("Erro ao restaurar pedido:", error);
+      restoreButton.disabled = false;
+      restoreButton.innerHTML = '<i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Restaurar';
+      notify(error.message || "Não foi possível restaurar o pedido.");
     }
     return;
   }

@@ -170,3 +170,18 @@ Na tela Pedidos:
 
 Atenção: arquivar um pedido não cancela uma cobrança ainda pendente no Mercado Pago.
 A situação da cobrança deve continuar sendo acompanhada pelo webhook/provedor.
+
+
+## Pedidos arquivados e restauração
+
+A área **Pedidos** possui as visualizações **Pedidos ativos** e **Pedidos arquivados**.
+Pedidos arquivados podem ser restaurados para a lista ativa. A exclusão definitiva
+continua protegida pela função `delete_order_without_financial_history`: o banco
+rejeita a exclusão se houver qualquer registro em `payments` ou `cash_transactions`,
+independentemente do que a interface exibir.
+
+Para habilitar a restauração, execute no SQL Editor do Supabase o conteúdo de:
+
+`supabase/migrations/0018_order_restore.sql`
+
+A função exige `public.is_staff()` e não altera registros financeiros.
