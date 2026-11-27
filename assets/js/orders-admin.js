@@ -38,12 +38,10 @@ const formatDate = (value) => {
   }).format(new Date(value));
 };
 
-// Pagamentos pendentes não são, por si só, histórico financeiro confirmado.
-// A Edge Function valida a cobrança online diretamente no Mercado Pago.
 function hasFinancialHistory(order) {
   const payments = order.payments || [];
   return (order.cash_transactions || []).length > 0 || payments.some((payment) =>
-    payment.status === "paid" || payment.status === "refunded" || Boolean(payment.paid_at)
+    payment.paid_at || ["paid", "refunded"].includes(payment.status)
   );
 }
 
@@ -528,7 +526,7 @@ async function loadOrders() {
           unit_price,
           line_total
         ),
-        payments (method,status,payment_channel,provider,provider_reference,paid_at),
+        payments (method,status,payment_channel,provider,paid_at),
         cash_transactions (id)
       `)
       .order("created_at", { ascending: false })
@@ -772,7 +770,8 @@ async function handleTableAction(event) {
 
     const confirmed = window.confirm(
       `Excluir permanentemente o pedido #${order.order_number}?\\n\\n` +
-      "O servidor verificará a cobrança no Mercado Pago antes de excluir. Se houver pagamento ativo, confirmado ou qualquer dúvida, a exclusão será bloqueada."
+      "A cobrança online será verificada e, se ainda estiver aberta, será expirada. " +
+      "Pedidos com pagamento recebido ou movimentação no caixa não podem ser excluídos."
     );
     if (!confirmed) return;
 
@@ -786,7 +785,14 @@ async function handleTableAction(event) {
       );
 
       if (error) {
-        throw new Error(await getEdgeFunctionErrorMessage(error, data));
+        let responseMessage = data?.error;
+        if (!responseMessage && error.context?.clone) {
+          try {
+            const payload = await error.context.clone().json();
+            responseMessage = payload?.error;
+          } catch (_) {}
+        }
+        throw new Error(responseMessage || error.message || "Não foi possível validar a cobrança no Mercado Pago.");
       }
       if (data?.success !== true) {
         throw new Error(data?.error || "O banco não confirmou a exclusão.");
