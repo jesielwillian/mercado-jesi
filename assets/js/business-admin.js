@@ -8,6 +8,35 @@ const money = (v) => Number(v || 0).toLocaleString("pt-BR", {
 
 const date = (v) => v ? new Date(v).toLocaleDateString("pt-BR") : "—";
 
+const paymentMethodLabel = (value) => {
+  const key = String(value ?? "").trim().toLowerCase();
+  const labels = {
+    cash: "Dinheiro",
+    pix: "Pix",
+    card: "Cartão",
+    credit: "Cartão de crédito",
+    credit_card: "Cartão de crédito",
+    debit: "Cartão de débito",
+    debit_card: "Cartão de débito",
+    onsite_card: "Cartão presencial",
+    visa: "Cartão (Visa)",
+    mastercard: "Cartão (Mastercard)",
+    mercado_pago: "Mercado Pago",
+    mercadopago: "Mercado Pago",
+    mercado_pago_card: "Cartão pelo Mercado Pago",
+    mercado_pago_pix: "Pix pelo Mercado Pago",
+    bank_transfer: "Transferência bancária",
+    transfer: "Transferência bancária",
+    boleto: "Boleto bancário",
+    pending: "Pendente",
+    paid: "Pago",
+    refunded: "Estornado",
+    failed: "Falhou",
+    processing: "Em processamento"
+  };
+  return labels[key] || (key ? key.replace(/[_-]+/g, " ").replace(/\b\w/g, c => c.toLocaleUpperCase("pt-BR")) : "Não informado");
+};
+
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, c => ({
   "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
 }[c]));
@@ -332,7 +361,7 @@ export function mountFinanceAdmin({content, notify}) {
       </section>
       <section class="ba-panel"><h3>Pagamentos recebidos no mês</h3>
         <p class="ba-note">Somente pagamentos com status confirmado são contabilizados. As vendas e movimentações do caixa não são alteradas por este módulo.</p>
-        ${table(["Data","Forma","Valor"],(payments.data||[]).map(p=>`<tr><td>${date(p.paid_at)}</td><td>${esc(p.method)}</td><td>${money(p.amount)}</td></tr>`).join(""))}
+        ${table(["Data","Forma de pagamento","Valor"],(payments.data||[]).map(p=>`<tr><td>${date(p.paid_at)}</td><td>${esc(paymentMethodLabel(p.method))}</td><td>${money(p.amount)}</td></tr>`).join(""))}
       </section>`;
 
     root.querySelector('[data-form="expense"]').addEventListener("submit",async e=>{
@@ -512,6 +541,31 @@ export function mountReportsAdmin({content, notify}) {
       <section class="ba-panel"><h3>Estoque no limite ou abaixo do mínimo</h3>
         ${table(["Produto","SKU","Saldo","Mínimo"],low.map(item=>`<tr><td>${esc(item.products?.name||"Produto")}</td><td>${esc(item.products?.sku||"—")}</td><td>${item.quantity}</td><td>${item.minimum_quantity}</td></tr>`).join(""))}
       </section>`;
+
+    // A limpeza é vinculada após cada renderização para não depender de
+    // delegação e atualizar imediatamente os campos visíveis do formulário.
+    root.querySelector("[data-clear-period]")?.addEventListener("click", async () => {
+      const clearButton = root.querySelector("[data-clear-period]");
+      const form = root.querySelector('[data-form="period"]');
+      const fromInput = form?.elements.namedItem("from");
+      const toInput = form?.elements.namedItem("to");
+      if (fromInput) fromInput.value = defaultFrom;
+      if (toInput) toInput.value = defaultTo;
+      if (clearButton) {
+        clearButton.disabled = true;
+        clearButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Limpando...';
+      }
+      try {
+        await load(defaultFrom, defaultTo, 1);
+        notify("Filtros limpos. Exibindo o período padrão.");
+      } catch (error) {
+        notify(error.message || "Não foi possível limpar os filtros.");
+        if (clearButton?.isConnected) {
+          clearButton.disabled = false;
+          clearButton.innerHTML = '<i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Limpar filtros';
+        }
+      }
+    });
   }
 
   root.addEventListener("submit", async event => {
@@ -535,12 +589,7 @@ export function mountReportsAdmin({content, notify}) {
   });
 
   root.addEventListener("click", event => {
-    const clear = event.target.closest("[data-clear-period]");
     const pageButton = event.target.closest("[data-report-page]");
-    if (clear) {
-      load(defaultFrom, defaultTo, 1).catch(error => notify(error.message || "Não foi possível limpar os filtros."));
-      return;
-    }
     if (pageButton && !pageButton.disabled) {
       load(currentFrom, currentTo, Number(pageButton.dataset.reportPage)).catch(error => notify(error.message || "Não foi possível carregar esta página."));
     }
