@@ -317,131 +317,41 @@ export function mountCouponsAdmin({content, notify}) {
 /* FINANCEIRO */
 export function mountFinanceAdmin({content, notify}) {
   const root = setup(content, "Financeiro", notify);
-  let expenseRecords = [];
-
-  async function load() {
-    const now = new Date();
-    const start = new Date(now.getFullYear(),now.getMonth(),1).toISOString();
-    const end = new Date(now.getFullYear(),now.getMonth()+1,1).toISOString();
-
-    const [payments, expenses] = await Promise.all([
-      supabase.from("payments").select("id,amount,status,method,paid_at,created_at")
-        .eq("status","paid").gte("paid_at",start).lt("paid_at",end).order("paid_at",{ascending:false}),
-      supabase.from("expenses").select("*").gte("created_at",start).lt("created_at",end).order("created_at",{ascending:false})
-    ]);
-    if (payments.error) throw payments.error;
-    if (expenses.error) throw expenses.error;
-
-    expenseRecords = expenses.data || [];
-
-    const income = (payments.data||[]).reduce((s,x)=>s+Number(x.amount||0),0);
-    const costs = (expenses.data||[]).reduce((s,x)=>s+Number(x.amount||0),0);
-    const rows = (expenses.data||[]).map(x=>`
-      <tr><td>${esc(x.description)}</td><td>${esc(x.category||"—")}</td><td>${date(x.due_date)}</td><td>${x.paid_at?date(x.paid_at):"Pendente"}</td><td>${money(x.amount)}</td><td><button class="ba-btn secondary" data-paid="${x.id}">${x.paid_at?"Reabrir":"Marcar paga"}</button> <button class="ba-btn danger" data-delete="${x.id}">Excluir</button></td></tr>
-    `).join("");
-
-    root.innerHTML = `
-      <div class="ba-head"><h2>Financeiro</h2><span class="ba-muted">Resumo do mês atual</span></div>
-      <div class="ba-grid">
-        <article class="ba-card"><small>Receitas confirmadas</small><strong>${money(income)}</strong></article>
-        <article class="ba-card"><small>Despesas cadastradas</small><strong>${money(costs)}</strong></article>
-        <article class="ba-card"><small>Resultado do período</small><strong>${money(income-costs)}</strong></article>
-      </div>
-      <section class="ba-panel"><h3>Registrar despesa</h3>
-        <form class="ba-form" data-form="expense">
-          ${field("Descrição","description","","text",'required maxlength="180"')}
-          <label>Categoria<select name="category" required>
-            <option value="" selected disabled>Selecione uma categoria</option>
-            <option value="Mercadorias">Mercadorias</option>
-            <option value="Fornecedores">Fornecedores</option>
-            <option value="Água e energia">Água e energia</option>
-            <option value="Internet e telefone">Internet e telefone</option>
-            <option value="Embalagens">Embalagens</option>
-            <option value="Transporte e frete">Transporte e frete</option>
-            <option value="Aluguel">Aluguel</option>
-            <option value="Funcionários">Funcionários</option>
-            <option value="Manutenção">Manutenção</option>
-            <option value="Impostos e taxas">Impostos e taxas</option>
-            <option value="Marketing">Marketing</option>
-            <option value="Outros">Outros</option>
-          </select></label>
-          ${field("Valor (R$)","amount","","text",'required inputmode="decimal" data-currency-mask="true" placeholder="Ex.: 45,90" autocomplete="off"')}
-          ${field("Vencimento","due_date","","date")}
-          <div class="ba-actions wide"><button class="ba-btn" type="submit">Cadastrar despesa</button></div>
-        </form>
-      </section>
-      <section class="ba-panel"><h3>Despesas do mês</h3>
-        ${table(["Descrição","Categoria","Vencimento","Pagamento","Valor","Ações"],rows)}
-      </section>
-      <section class="ba-panel"><h3>Pagamentos recebidos no mês</h3>
-        <p class="ba-note">Somente pagamentos com status confirmado são contabilizados. As vendas e movimentações do caixa não são alteradas por este módulo.</p>
-        ${table(["Data","Forma de pagamento","Valor"],(payments.data||[]).map(p=>`<tr><td>${date(p.paid_at)}</td><td>${esc(paymentMethodLabel(p.method))}</td><td>${money(p.amount)}</td></tr>`).join(""))}
-      </section>`;
-
-    root.querySelector('[data-form="expense"]').addEventListener("submit",async e=>{
-      e.preventDefault();
-      const v = new FormData(e.currentTarget);
-      // O campo permanece mascarado em pt-BR na tela; convertemos somente
-      // o valor recebido pelo formulário para número antes de enviar ao Supabase.
-      const rawAmount = String(v.get("amount") || "").trim();
-      const amount = (() => {
-        let normalized = rawAmount.replace(/R\$|\s/gi, "").replace(/[^\d.,-]/g, "");
-        if (!normalized) return NaN;
-
-        const comma = normalized.lastIndexOf(",");
-        const dot = normalized.lastIndexOf(".");
-        if (comma >= 0) {
-          // Formato brasileiro: 1.250,50
-          normalized = normalized.replace(/\./g, "").replace(",", ".");
-        } else if (dot >= 0) {
-          // Aceita decimal normalizado (1250.50) e milhar (1.250).
-          const decimals = normalized.length - dot - 1;
-          if (decimals === 3) normalized = normalized.replace(/\./g, "");
-        }
-        return Number(normalized);
-      })();
-      const description = String(v.get("description")||"").trim();
-      const category = String(v.get("category")||"").trim();
-      if (!description || !category || !Number.isFinite(amount) || amount<=0) {
-        return notify("Preencha a descrição, selecione uma categoria e informe um valor maior que zero (ex.: 45,90).");
-      }
-      const {data:{user}} = await supabase.auth.getUser();
-      const {error} = await supabase.from("expenses").insert({
-        description, category,
-        amount, due_date:v.get("due_date")||null, created_by:user?.id
-      });
-      if (error) return notify(error.message);
-      notify("Despesa cadastrada.");
-      await load();
-    });
-
+  let entries=[];
+  const todayISO=()=>new Date().toISOString().slice(0,10);
+  async function load(){
+    const {data,error}=await supabase.from("financial_entries").select("*").order("due_date",{ascending:true}).limit(1000);
+    if(error)throw error; entries=data||[]; render();
   }
-
-  root.addEventListener("click", async e => {
-    const paid = e.target.closest("[data-paid]");
-    const del = e.target.closest("[data-delete]");
-
-    if (paid) {
-      const row = expenseRecords.find(x => x.id === paid.dataset.paid);
-      if (!row) return;
-      const {error} = await supabase.from("expenses")
-        .update({paid_at: row.paid_at ? null : new Date().toISOString()})
-        .eq("id", row.id);
-      if (error) return notify(error.message);
-      notify("Despesa atualizada.");
-      await load();
-      return;
-    }
-
-    if (del) {
-      if (!confirm("Excluir esta despesa?")) return;
-      const {error} = await supabase.from("expenses").delete().eq("id", del.dataset.delete);
-      if (error) return notify(error.message);
-      notify("Despesa excluída.");
-      await load();
-    }
-  });
-
+  function render(){
+    const payables=entries.filter(x=>x.entry_type==='payable'&&x.status!=='cancelled');
+    const receivables=entries.filter(x=>x.entry_type==='receivable'&&x.status!=='cancelled');
+    const payableOpen=payables.filter(x=>x.status!=='paid').reduce((s,x)=>s+Number(x.amount||0),0);
+    const receivableOpen=receivables.filter(x=>x.status!=='paid').reduce((s,x)=>s+Number(x.amount||0),0);
+    const paidIn=receivables.filter(x=>x.status==='paid').reduce((s,x)=>s+Number(x.amount||0),0);
+    const paidOut=payables.filter(x=>x.status==='paid').reduce((s,x)=>s+Number(x.amount||0),0);
+    root.innerHTML=`
+      <div class="ba-head"><h2>Financeiro</h2><span class="ba-muted">Contas a pagar, receber e conciliação</span></div>
+      <div class="ba-grid">
+        <article class="ba-card"><small>A receber em aberto</small><strong>${money(receivableOpen)}</strong></article>
+        <article class="ba-card"><small>A pagar em aberto</small><strong>${money(payableOpen)}</strong></article>
+        <article class="ba-card"><small>Saldo realizado</small><strong>${money(paidIn-paidOut)}</strong></article>
+      </div>
+      <section class="ba-panel"><h3>Nova conta</h3><form class="ba-form" data-form="financial">
+        <label>Tipo<select name="entry_type"><option value="payable">Conta a pagar</option><option value="receivable">Conta a receber</option></select></label>
+        ${field("Descrição","description","","text",'required maxlength="180"')}
+        ${field("Categoria","category","","text",'maxlength="100" placeholder="Fornecedor, venda, imposto…"')}
+        ${field("Valor (R$)","amount","","text",'required inputmode="decimal" placeholder="Ex.: 150,00"')}
+        ${field("Vencimento","due_date",todayISO(),"date",'required')}
+        <label>Forma de pagamento<select name="payment_method"><option value="pix">Pix</option><option value="card">Cartão</option><option value="cash">Dinheiro</option><option value="transfer">Transferência</option><option value="other">Outro</option></select></label>
+        <div class="ba-actions wide"><button class="ba-btn" type="submit">Cadastrar conta</button></div>
+      </form></section>
+      <section class="ba-panel"><h3>Contas e conciliação</h3>
+        ${table(["Tipo","Descrição","Vencimento","Valor","Status","Conciliação","Ações"],entries.map(x=>`<tr><td>${x.entry_type==='payable'?'A pagar':'A receber'}</td><td>${esc(x.description)}</td><td>${date(x.due_date)}</td><td>${money(x.amount)}</td><td><span class="ba-status ${x.status==='paid'?'':'off'}">${x.status==='paid'?'Pago':x.status==='cancelled'?'Cancelado':'Pendente'}</span></td><td>${x.reference_id?'Automática':'Manual'}</td><td><div class="ba-actions"><button class="ba-btn secondary" data-pay="${x.id}">${x.status==='paid'?'Reabrir':'Marcar pago'}</button><button class="ba-btn secondary" data-reconcile="${x.id}">Conciliar</button></div></td></tr>`).join(""))}
+      </section>`;
+    root.querySelector('[data-form="financial"]').addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.currentTarget);const amount=parseCouponValue(f.get('amount'));if(!Number.isFinite(amount)||amount<=0)return notify('Informe um valor válido.');const {data:{user}}=await supabase.auth.getUser();const {error}=await supabase.from('financial_entries').insert({entry_type:f.get('entry_type'),description:String(f.get('description')).trim(),category:String(f.get('category')||'').trim()||null,amount,due_date:f.get('due_date'),payment_method:f.get('payment_method'),created_by:user?.id});if(error)return notify(error.message);notify('Conta cadastrada.');await load();});
+  }
+  root.addEventListener('click',async e=>{const pay=e.target.closest('[data-pay]');const rec=e.target.closest('[data-reconcile]');if(pay){const row=entries.find(x=>x.id===pay.dataset.pay);if(!row)return;const next=row.status==='paid'?'pending':'paid';const {error}=await supabase.from('financial_entries').update({status:next,paid_at:next==='paid'?new Date().toISOString():null,updated_at:new Date().toISOString()}).eq('id',row.id);if(error)return notify(error.message);notify('Conta atualizada.');await load();}if(rec){const row=entries.find(x=>x.id===rec.dataset.reconcile);if(!row)return;const amount=prompt('Valor no extrato para conciliação:',String(row.amount).replace('.',','));if(amount===null)return;const parsed=parseCouponValue(amount);if(!Number.isFinite(parsed)||parsed<0)return notify('Valor inválido.');const {data:{user}}=await supabase.auth.getUser();const {error}=await supabase.from('financial_reconciliations').upsert({financial_entry_id:row.id,statement_amount:parsed,reconciled_by:user?.id,external_reference:'MANUAL'});if(error)return notify(error.message);notify('Lançamento conciliado.');await load();}});
   load().catch(e=>errorView(root,e,()=>load().catch(x=>errorView(root,x,load))));
 }
 
@@ -463,6 +373,9 @@ export function mountReportsAdmin({content, notify}) {
     const finishDate = to ? new Date(`${to}T23:59:59.999`) : new Date();
     if (Number.isNaN(startDate.getTime()) || Number.isNaN(finishDate.getTime())) throw new Error("Informe datas válidas para o período.");
     if (startDate > finishDate) throw new Error("A data inicial deve ser anterior ou igual à data final.");
+
+    const {data:profitability,error:profitabilityError}=await supabase.rpc("get_profitability_report",{p_from:startDate.toISOString(),p_to:finishDate.toISOString()});
+    if(profitabilityError) throw profitabilityError;
 
     currentFrom = from;
     currentTo = to;
@@ -558,7 +471,10 @@ export function mountReportsAdmin({content, notify}) {
       </form></section>
       <div class="ba-grid">
         <article class="ba-card"><small>Pedidos no período</small><strong>${totalOrders}</strong></article>
-        <article class="ba-card"><small>Valor total dos pedidos</small><strong>${money(total)}</strong></article>
+        <article class="ba-card"><small>Faturamento</small><strong>${money(profitability?.revenue||total)}</strong></article>
+        <article class="ba-card"><small>Lucro bruto</small><strong>${money(profitability?.gross_profit||0)}</strong></article>
+        <article class="ba-card"><small>Lucro líquido</small><strong>${money(profitability?.net_profit||0)}</strong></article>
+        <article class="ba-card"><small>Margem líquida</small><strong>${Number(profitability?.margin_percent||0).toLocaleString('pt-BR')}%</strong></article>
         <article class="ba-card"><small>Pedidos concluídos</small><strong>${completed}</strong></article>
       </div>
       <section class="ba-panel"><h3>Produtos mais vendidos</h3>

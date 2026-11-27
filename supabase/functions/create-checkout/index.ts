@@ -161,11 +161,38 @@ Deno.serve(async (req) => {
       throw new Error("CREATE_ORDER: " + orderError.message);
     }
 
+    const { data: trackingOrder, error: trackingError } = await db
+      .from("orders")
+      .select("tracking_code")
+      .eq("id", order.order_id)
+      .single();
+    if (trackingError || !trackingOrder?.tracking_code) {
+      console.error("TRACKING CODE ERROR:", trackingError);
+      throw new Error("Não foi possível gerar o código seguro de acompanhamento.");
+    }
+
+    const { data: trackingOrder, error: trackingError } = await db
+      .from("orders")
+      .select("tracking_code")
+      .eq("id", order.order_id)
+      .single();
+    if (trackingError || !trackingOrder?.tracking_code) {
+      console.error("TRACKING CODE ERROR:", trackingError);
+      throw new Error("Não foi possível gerar o código seguro de acompanhamento.");
+    }
+
+    fetch(`${SUPABASE_URL}/functions/v1/process-whatsapp-queue`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },
+      body: "{}",
+    }).catch((error) => console.warn("WhatsApp queue processing skipped:", error));
+
     if (paymentMethod === "onsite_card") {
       return json({
         ok: true,
         order_id: order.order_id,
         order_number: order.order_number,
+        tracking_code: trackingOrder.tracking_code,
         total: order.total,
         payment_method: "onsite_card",
         message: "Pedido registrado. O pagamento será feito na entrega.",
@@ -303,6 +330,7 @@ Deno.serve(async (req) => {
       ok: true,
       order_id: order.order_id,
       order_number: order.order_number,
+      tracking_code: trackingOrder.tracking_code,
       total: order.total,
       checkout_url: checkoutUrl,
       preference_id: preference.id,

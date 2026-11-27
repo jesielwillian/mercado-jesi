@@ -182,6 +182,12 @@ Deno.serve(async (req) => {
       throw error;
     }
 
+    fetch(`${SUPABASE_URL}/functions/v1/process-whatsapp-queue`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },
+      body: "{}",
+    }).catch((error) => console.warn("WhatsApp queue processing skipped:", error));
+
     console.log("Pagamento processado:", {
       paymentId: payment.id,
       orderId,

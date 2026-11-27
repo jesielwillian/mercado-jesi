@@ -1,0 +1,7 @@
+import { supabase } from './supabase.js';
+const form=document.querySelector('#track-form');const result=document.querySelector('#track-result');
+const labels={pending:'Pendente',confirmed:'Confirmado',preparing:'Em preparação',ready:'Pronto',out_for_delivery:'Saiu para entrega',completed:'Concluído',cancelled:'Cancelado'};
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const dt=v=>v?new Date(v).toLocaleString('pt-BR'):'—';
+form.addEventListener('submit',async e=>{e.preventDefault();result.classList.remove('hidden');result.innerHTML='<p>Consultando…</p>';const v=new FormData(form);const {data,error}=await supabase.rpc('get_public_order_tracking',{p_order_number:Number(v.get('order_number')),p_phone:String(v.get('phone')),p_tracking_code:String(v.get('tracking_code')).trim()});if(error){result.innerHTML=`<p>${esc(error.message)}</p>`;return;}if(!data?.found){result.innerHTML='<p>Pedido não encontrado. Confira os dados informados.</p>';return;}result.innerHTML=`<div class="track-status">Pedido #${esc(data.order_number)} — ${esc(labels[data.status]||data.status)}</div><p>Cliente: ${esc(data.customer_name)} · Total: ${money(data.total)}</p><div class="track-timeline">${(data.events||[]).map(x=>`<div class="track-event"><strong>${esc(labels[x.status]||x.status)}</strong><br><small>${esc(x.note||'Atualização do pedido')} · ${dt(x.created_at)}</small></div>`).join('')}</div>`;});

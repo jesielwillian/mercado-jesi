@@ -183,7 +183,10 @@ function openCheckout(){
       if(data?.error)throw new Error(data.error);
       if(data.checkout_url){window.location.assign(data.checkout_url);return;}
       cart=[];renderCart();closeCart();root.remove();
-      notify(`Pedido #${data.order_number} registrado! Pagamento presencial no recebimento.`);
+      if(data.tracking_code){
+        localStorage.setItem("mercado_jesi_tracking",JSON.stringify({order_number:data.order_number,phone:customer.phone,tracking_code:data.tracking_code}));
+      }
+      notify(`Pedido #${data.order_number} registrado! Código de rastreamento: ${data.tracking_code||"disponível no atendimento"}.`);
     }catch(err){errorEl.textContent=translateErrorMessage(err.message,"Não foi possível registrar o pedido.");button.disabled=false;button.textContent="Tentar novamente";}
   });
 }
