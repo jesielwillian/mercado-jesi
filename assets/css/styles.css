@@ -2110,16 +2110,28 @@ body>.home-select-menu>.home-select-option:disabled {
     }
 }
 
-/* Posição fixa do botão "Voltar ao topo": canto inferior direito. */
-.back-to-top {
+\n/* Posicionamento fixo e inequívoco do botão voltar ao topo */
+#back-to-top.back-to-top {
+    position: fixed !important;
+    inset-inline-start: auto !important;
+    inset-inline-end: 24px !important;
     left: auto !important;
-    right: 22px !important;
-    bottom: 22px !important;
+    right: 24px !important;
+    bottom: 24px !important;
+    margin: 0 !important;
+    width: 46px;
+    min-width: 46px;
+    max-width: 46px;
+    height: 46px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    text-align: center;
 }
 @media (max-width: 560px) {
-    .back-to-top {
-        left: auto !important;
-        right: 14px !important;
-        bottom: 14px !important;
+    #back-to-top.back-to-top {
+        inset-inline-end: 16px !important;
+        right: 16px !important;
+        bottom: 16px !important;
     }
 }
