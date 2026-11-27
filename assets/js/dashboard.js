@@ -238,17 +238,19 @@ async function loadOverview() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const [ordersResult, pendingOrdersResult, productsResult, inventoryResult, todaySalesResult] =
+  const [recentOrdersResult, ordersCountResult, pendingOrdersResult, productsResult, inventoryResult, todaySalesResult] =
     await Promise.all([
       supabase
         .from("orders")
-        .select(
-          "id,order_number,customer_name,total,status,created_at,deleted_at",
-          { count: "exact" },
-        )
+        .select("id,order_number,customer_name,total,status,created_at,deleted_at")
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(5),
+
+      supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .is("deleted_at", null),
 
       supabase
         .from("orders")
@@ -270,7 +272,8 @@ async function loadOverview() {
     ]);
 
   const errors = [
-    ordersResult.error,
+    recentOrdersResult.error,
+    ordersCountResult.error,
     pendingOrdersResult.error,
     productsResult.error,
     inventoryResult.error,
@@ -281,7 +284,7 @@ async function loadOverview() {
     console.error("Falha ao carregar indicadores reais:", errors);
   }
 
-  const orders = ordersResult.data || [];
+  const orders = recentOrdersResult.data || [];
   const sales = todaySalesResult.data || [];
   const inventory = inventoryResult.data || [];
 
@@ -304,8 +307,8 @@ async function loadOverview() {
     }
   }
 
-  if (!ordersResult.error && ordersEl) {
-    ordersEl.textContent = String(ordersResult.count ?? 0);
+  if (!ordersCountResult.error && ordersEl) {
+    ordersEl.textContent = String(ordersCountResult.count ?? 0);
   }
 
   const ordersNavCount = document.querySelector("#orders-nav-count");
@@ -336,7 +339,7 @@ async function loadOverview() {
     }
   }
 
-  if (!ordersResult.error && tbody) {
+  if (!recentOrdersResult.error && tbody) {
     const statusLabels = {
       pending: "Pendente",
       confirmed: "Confirmado",

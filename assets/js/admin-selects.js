@@ -49,7 +49,8 @@ function enhanceSelect(select) {
 
     menu.setAttribute("role", "listbox");
     menu.tabIndex = -1;
-    select.querySelectorAll("option").forEach((option, index) => {
+    // Opções placeholder (value vazio) não aparecem no menu customizado.
+    [...select.options].filter(option => option.value.trim() !== "").forEach((option, index) => {
       const item = document.createElement("button");
       item.type = "button";
       item.className = "admin-select-option";
