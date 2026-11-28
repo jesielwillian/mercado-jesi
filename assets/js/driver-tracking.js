@@ -1,4 +1,16 @@
-import { supabase, isSupabaseConfigured } from './supabase.js';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
+
+// Sessão isolada: o login do entregador não sobrescreve a sessão administrativa.
+const isSupabaseConfigured = SUPABASE_URL.startsWith('https://') && SUPABASE_ANON_KEY.length > 20 && !SUPABASE_URL.includes('SEU-PROJETO');
+const supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    storageKey: 'mercado-jesi-driver-auth',
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false
+  }
+}) : null;
 
 const $ = (selector) => document.querySelector(selector);
 let gpsWatchId = null;

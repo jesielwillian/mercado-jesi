@@ -41,7 +41,7 @@ form.addEventListener("submit", async (event) => {
     if (
       profileError ||
       !profile?.active ||
-      !["owner", "admin", "manager", "employee", "operator", "delivery"].includes(profile.role)
+      !["owner", "admin", "manager", "employee", "operator"].includes(profile.role)
     ) {
       await supabase.auth.signOut();
       message.textContent =
