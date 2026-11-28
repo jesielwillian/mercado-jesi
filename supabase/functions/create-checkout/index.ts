@@ -5,7 +5,9 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const MP_ACCESS_TOKEN = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN")!;
 const SITE_URL = (Deno.env.get("SITE_URL") || "").replace(/\/$/, "");
+
 const CHECKOUT_SUSPENDED = Deno.env.get("CHECKOUT_SUSPENDED") === "true";
+
 const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
@@ -13,6 +15,7 @@ const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 function validSiteUrl(value: string) {
   try {
     const url = new URL(value);
+
     return (
       url.protocol === "https:" ||
       ["localhost", "127.0.0.1"].includes(url.hostname)
@@ -23,9 +26,11 @@ function validSiteUrl(value: string) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS")
+  if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
-  if (CHECKOUT_SUSPENDED)
+  }
+
+  if (CHECKOUT_SUSPENDED) {
     return json(
       {
         error:
@@ -33,49 +38,62 @@ Deno.serve(async (req) => {
       },
       503,
     );
-  if (req.method !== "POST")
+  }
+
+  if (req.method !== "POST") {
     return json({ error: "Método não permitido." }, 405);
-  if (!MP_ACCESS_TOKEN || !validSiteUrl(SITE_URL))
+  }
+
+  if (!MP_ACCESS_TOKEN || !validSiteUrl(SITE_URL)) {
     return json(
-      { error: "Checkout ainda não configurado. Peça ajuda ao mercado." },
+      {
+        error: "Checkout ainda não configurado. Peça ajuda ao mercado.",
+      },
       503,
     );
+  }
 
   try {
     const body = await req.json();
+
     const customer = body?.customer || {};
-    const notes =
-      typeof body?.notes === "string" ? body.notes.trim().slice(0, 1000) : "";
+
     const items = Array.isArray(body?.items)
       ? body.items.map((item: any) => ({
           product_id: String(item.product_id || ""),
           quantity: Number(item.quantity),
         }))
       : [];
+
     const fulfillment = body?.fulfillment === "pickup" ? "pickup" : "delivery";
+
     const paymentMethod = ["pix", "card", "onsite_card"].includes(
       body?.payment_method,
     )
       ? body.payment_method
       : "";
 
-    if (!paymentMethod)
+    if (!paymentMethod) {
       return json({ error: "Escolha uma forma de pagamento válida." }, 400);
+    }
+
     if (
-      items.length === 0 ||
       items.some(
         (item: any) =>
           !/^[0-9a-f-]{36}$/i.test(item.product_id) ||
           !Number.isFinite(item.quantity) ||
           item.quantity <= 0,
       )
-    )
+    ) {
       return json(
         { error: "Confira os produtos e quantidades da sacola." },
         400,
       );
-    if (customer.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email))
+    }
+
+    if (customer.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) {
       return json({ error: "Informe um e-mail válido." }, 400);
+    }
 
     const clientIp = (
       req.headers.get("x-forwarded-for") ||
@@ -84,24 +102,31 @@ Deno.serve(async (req) => {
     )
       .split(",")[0]
       .trim();
+
     const phoneDigits = String(customer.phone || "").replace(/\D/g, "");
+
     const fingerprintBytes = await crypto.subtle.digest(
       "SHA-256",
       new TextEncoder().encode(`${clientIp}:${phoneDigits}`),
     );
+
     const fingerprint = [...new Uint8Array(fingerprintBytes)]
       .map((byte) => byte.toString(16).padStart(2, "0"))
       .join("");
 
     const { data: allowed, error: limitError } = await db.rpc(
       "consume_checkout_rate_limit",
-      { p_fingerprint: fingerprint },
+      {
+        p_fingerprint: fingerprint,
+      },
     );
+
     if (limitError) {
       console.error("ERRO RATE LIMIT:", limitError);
       throw new Error("RATE_LIMIT: " + limitError.message);
     }
-    if (!allowed)
+
+    if (!allowed) {
       return json(
         {
           error:
@@ -109,6 +134,7 @@ Deno.serve(async (req) => {
         },
         429,
       );
+    }
 
     const { data: order, error: orderError } = await db.rpc(
       "create_store_order",
@@ -117,7 +143,7 @@ Deno.serve(async (req) => {
         p_items: items,
         p_fulfillment: fulfillment,
         p_payment_method: paymentMethod,
-        p_notes: notes || null,
+        p_notes: String(body?.notes || "").slice(0, 1000),
         p_coupon_code: String(body?.coupon_code || "").slice(0, 40),
       },
     );
@@ -127,54 +153,27 @@ Deno.serve(async (req) => {
       throw new Error("CREATE_ORDER: " + orderError.message);
     }
 
-    if (!order?.order_id) {
-      console.error("RESPOSTA CREATE ORDER:", order);
-      throw new Error(
-        "O pedido foi criado, mas o identificador não foi retornado.",
-      );
-    }
-
+    // CONSULTAR O CÓDIGO DE RASTREAMENTO DO PEDIDO CRIADO.
     const { data: trackingOrder, error: trackingError } = await db
       .from("orders")
       .select("tracking_code")
       .eq("id", order.order_id)
       .maybeSingle();
 
-    if (trackingError) {
-      console.error("TRACKING CODE ERROR:", trackingError);
-      throw new Error("Erro ao consultar o código de rastreamento.");
-    }
-
-    if (!trackingOrder?.tracking_code) {
-      console.error("CÓDIGO AUSENTE:", {
+    if (trackingError || !trackingOrder?.tracking_code) {
+      console.error("ERRO AO BUSCAR RASTREAMENTO:", {
         order_id: order.order_id,
-        order_number: order.order_number,
+        trackingError,
       });
+
       throw new Error(
-        "O pedido foi registrado, mas o código de rastreamento ainda não está disponível.",
+        "Pedido registrado, mas não foi possível consultar o código de rastreamento.",
       );
     }
 
     const trackingCode = trackingOrder.tracking_code;
 
-    try {
-      const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/process-email-queue`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: "{}",
-        },
-      );
-      if (!response.ok)
-        console.warn("process-email-queue returned HTTP", response.status);
-    } catch (error) {
-      console.warn("process-email-queue skipped:", error);
-    }
-
+    // PAGAMENTO NA ENTREGA.
     if (paymentMethod === "onsite_card") {
       return json({
         ok: true,
@@ -187,8 +186,10 @@ Deno.serve(async (req) => {
       });
     }
 
+    // CRIAR PREFERÊNCIA NO MERCADO PAGO.
     const preferenceBody = {
       external_reference: order.order_id,
+
       items: [
         {
           id: `pedido-${order.order_number}`,
@@ -199,10 +200,12 @@ Deno.serve(async (req) => {
           unit_price: Number(order.total),
         },
       ],
+
       payer: {
         name: String(customer.name || "Cliente Mercado Jesi").slice(0, 100),
         email: customer.email || undefined,
       },
+
       payment_methods: {
         excluded_payment_types:
           paymentMethod === "pix"
@@ -219,15 +222,23 @@ Deno.serve(async (req) => {
                 { id: "ticket" },
               ],
       },
+
       back_urls: {
         success: `${SITE_URL}/?checkout=success&order=${order.order_number}`,
         pending: `${SITE_URL}/?checkout=pending&order=${order.order_number}`,
         failure: `${SITE_URL}/?checkout=failure&order=${order.order_number}`,
       },
+
       auto_return: "approved",
+
       notification_url: `${SUPABASE_URL}/functions/v1/mercadopago-webhook`,
+
       statement_descriptor: "MERCADO JESI",
-      metadata: { order_id: order.order_id, order_number: order.order_number },
+
+      metadata: {
+        order_id: order.order_id,
+        order_number: order.order_number,
+      },
     };
 
     const mpResponse = await fetch(
@@ -249,9 +260,13 @@ Deno.serve(async (req) => {
         p_order_id: order.order_id,
         p_reason: "Falha ao criar cobrança no Mercado Pago.",
       });
-      console.error("Mercado Pago preference error:", preference);
+
+      console.error("Mercado Pago preference error", preference);
+
       return json(
-        { error: "Não foi possível iniciar o pagamento. Tente novamente." },
+        {
+          error: "Não foi possível iniciar o pagamento. Tente novamente.",
+        },
         502,
       );
     }
@@ -268,36 +283,34 @@ Deno.serve(async (req) => {
 
     if (paymentUpdateError) {
       console.error(
-        "ERRO AO SALVAR REFERÊNCIA DO PAGAMENTO:",
+        "Não foi possível salvar a referência da preferência",
         paymentUpdateError,
       );
+
       return json(
         {
-          error: `O pedido foi registrado, mas não foi possível abrir o pagamento. Entre em contato com o mercado informando o pedido #${order.order_number}.`,
+          error:
+            "O pedido foi registrado, mas não foi possível abrir o pagamento. Entre em contato com o mercado informando o pedido #" +
+            order.order_number +
+            ".",
         },
         503,
       );
     }
 
-    const isTest = Deno.env.get("MERCADOPAGO_ENV") === "test";
-    const checkoutUrl = isTest
-      ? preference.sandbox_init_point
-      : preference.init_point;
-
-    if (!checkoutUrl)
-      throw new Error("URL de checkout não retornada pelo Mercado Pago.");
-
+    // RESPOSTA FINAL COM O CÓDIGO DE RASTREAMENTO.
     return json({
       ok: true,
       order_id: order.order_id,
       order_number: order.order_number,
       tracking_code: trackingCode,
       total: order.total,
-      checkout_url: checkoutUrl,
+      checkout_url: preference.init_point,
       preference_id: preference.id,
     });
   } catch (error) {
-    console.error("create-checkout:", error);
+    console.error("create-checkout", error);
+
     return json(
       {
         error:
