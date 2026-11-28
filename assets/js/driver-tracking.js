@@ -20,6 +20,7 @@ function message(target, text, type = 'info') {
   element.textContent = text;
   element.hidden = !text;
   element.classList.toggle('error', type === 'error');
+  element.classList.toggle('success', type === 'success');
 }
 
 function statusLabel(status) {
@@ -108,14 +109,19 @@ function renderDeliveries(deliveries) {
   }).join('');
 }
 
-async function loadDeliveries() {
+async function loadDeliveries({ showUpdated = false } = {}) {
   const { data, error } = await supabase.rpc('driver_my_active_deliveries');
   if (error) {
     $('#driver-deliveries').innerHTML = '<div class="driver-empty">Não foi possível carregar os pedidos. Confirme a migração GPS e se esta conta possui perfil de entregador ativo.</div>';
     message('#driver-message', error.message, 'error');
-    return;
+    return false;
   }
   renderDeliveries(data);
+  if (showUpdated) {
+    const now = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date());
+    message('#driver-message', `Pedidos atualizados com sucesso às ${now}.`, 'success');
+  }
+  return true;
 }
 
 async function showSession(user) {
@@ -155,7 +161,20 @@ $('#driver-deliveries').addEventListener('click', async (event) => {
   if (pause) await pauseGps(pause.dataset.driverPause);
 });
 
-$('#driver-refresh').addEventListener('click', loadDeliveries);
+$('#driver-refresh').addEventListener('click', async () => {
+  const button = $('#driver-refresh');
+  const originalContent = button.innerHTML;
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  button.innerHTML = '<i class="fa-solid fa-rotate fa-spin" aria-hidden="true"></i> Atualizando…';
+  try {
+    await loadDeliveries({ showUpdated: true });
+  } finally {
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+    button.innerHTML = originalContent;
+  }
+});
 $('#driver-logout').addEventListener('click', async () => {
   stopBrowserWatch();
   await supabase.auth.signOut();
