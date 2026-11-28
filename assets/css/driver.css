@@ -104,3 +104,28 @@
   color:#fff;
 }
 .dashboard-body .drivers-admin-primary:hover{background:#286548;border-color:#286548;transform:none}
+
+/* Botão Atualizar do rastreamento: mesmo padrão dos botões secundários do site */
+.dashboard-body .gps-refresh-button{
+  min-height:32px;
+  padding:7px 12px;
+  border:1px solid #dfe8e1;
+  border-radius:10px;
+  background:#f6f9f6;
+  color:#4f6557;
+  font:700 11px/1.25 "Nunito",sans-serif;
+  letter-spacing:-.01em;
+  box-shadow:none;
+  transform:none;
+}
+.dashboard-body .gps-refresh-button:hover{
+  background:#eef5ef;
+  border-color:#c9dccd;
+  color:#4f6557;
+  box-shadow:none;
+  transform:translateY(-1px);
+}
+.dashboard-body .gps-refresh-button:focus-visible{
+  outline:3px solid rgba(23,107,67,.14);
+  outline-offset:2px;
+}
