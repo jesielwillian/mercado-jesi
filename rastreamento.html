@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -29,7 +30,10 @@
       justify-content: center;
     }
 
-    .track-wrap { width: min(620px, 100%); margin: auto; }
+    .track-wrap {
+      width: min(620px, 100%);
+      margin: auto;
+    }
 
     .track-back {
       display: inline-flex;
@@ -42,7 +46,11 @@
       text-decoration: none;
       transition: color .18s ease, transform .18s ease;
     }
-    .track-back:hover { color: var(--green-dark); transform: translateX(-2px); }
+
+    .track-back:hover {
+      color: var(--green-dark);
+      transform: translateX(-2px);
+    }
 
     .track-card {
       padding: clamp(24px, 4vw, 34px);
@@ -52,7 +60,12 @@
       box-shadow: 0 8px 28px rgba(23, 63, 42, .06);
     }
 
-    .track-head .eyebrow { display: inline-block; margin-bottom: 9px; font-size: 9px; }
+    .track-head .eyebrow {
+      display: inline-block;
+      margin-bottom: 9px;
+      font-size: 9px;
+    }
+
     .track-head h1 {
       margin: 0;
       color: var(--track-ink);
@@ -61,6 +74,7 @@
       font-weight: 800;
       letter-spacing: -.045em;
     }
+
     .track-head p {
       max-width: 510px;
       margin: 10px 0 0;
@@ -75,6 +89,7 @@
       gap: 15px;
       margin: 25px 0 0;
     }
+
     .track-form label {
       display: flex;
       flex-direction: column;
@@ -84,6 +99,7 @@
       font-size: 10px;
       font-weight: 800;
     }
+
     .track-form input {
       width: 100%;
       min-width: 0;
@@ -99,14 +115,24 @@
       outline: 0;
       transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
     }
-    .track-form input::placeholder { color: #a0aaa3; }
-    .track-form input:hover { border-color: #cbd9ce; }
+
+    .track-form input::placeholder {
+      color: #a0aaa3;
+    }
+
+    .track-form input:hover {
+      border-color: #cbd9ce;
+    }
+
     .track-form input:focus {
       border-color: #70a986;
       background: #fff;
       box-shadow: 0 0 0 3px rgba(23, 107, 67, .07);
     }
-    .track-form .wide { grid-column: 1 / -1; }
+
+    .track-form .wide {
+      grid-column: 1 / -1;
+    }
 
     .track-btn {
       width: 100%;
@@ -127,10 +153,25 @@
       cursor: pointer;
       transition: background .18s ease, transform .18s ease, box-shadow .18s ease;
     }
-    .track-btn:hover { background: #286548; box-shadow: 0 5px 14px rgba(23,107,67,.12); }
-    .track-btn:active { transform: scale(.99); }
-    .track-btn:focus-visible { outline: 3px solid rgba(23,107,67,.16); outline-offset: 2px; }
-    .track-btn:disabled { opacity: .65; cursor: wait; }
+
+    .track-btn:hover {
+      background: #286548;
+      box-shadow: 0 5px 14px rgba(23, 107, 67, .12);
+    }
+
+    .track-btn:active {
+      transform: scale(.99);
+    }
+
+    .track-btn:focus-visible {
+      outline: 3px solid rgba(23, 107, 67, .16);
+      outline-offset: 2px;
+    }
+
+    .track-btn:disabled {
+      opacity: .65;
+      cursor: wait;
+    }
 
     .track-note {
       display: flex;
@@ -145,7 +186,11 @@
       font-size: 10px;
       line-height: 1.6;
     }
-    .track-note i { margin-top: 2px; color: #5d9672; }
+
+    .track-note i {
+      margin-top: 2px;
+      color: #5d9672;
+    }
 
     .track-result {
       margin-top: 18px;
@@ -157,14 +202,25 @@
       font-size: 12px;
       line-height: 1.6;
     }
-    .track-result > p { margin: 8px 0 0; color: var(--track-muted); }
+
+    .track-result>p {
+      margin: 8px 0 0;
+      color: var(--track-muted);
+    }
+
     .track-status {
       color: var(--green-dark);
       font-size: 15px;
       font-weight: 800;
       line-height: 1.4;
     }
-    .track-timeline { display: grid; gap: 9px; margin-top: 15px; }
+
+    .track-timeline {
+      display: grid;
+      gap: 9px;
+      margin-top: 15px;
+    }
+
     .track-event {
       padding: 11px 13px;
       border: 1px solid #e9f0ea;
@@ -173,54 +229,166 @@
       background: #fff;
       font-size: 11px;
     }
-    .track-event strong { color: #34483a; }
-    .track-event small { display: block; margin-top: 3px; color: var(--track-muted); line-height: 1.5; }
-    .track-live-map { margin-top: 16px; overflow: hidden; border: 1px solid #dfe9e1; border-radius: 11px; background: #fff; }
-    .track-map-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 13px; color: #28563b; }
-    .track-map-heading strong { font-size: 12px; }
-    .track-map-heading span { color: var(--track-muted); font-size: 10px; }
-    .track-live-map iframe { display: block; width: 100%; height: 300px; border: 0; background: #edf2ed; }
-    .track-live-map > a { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; color: #286548; font-size: 11px; font-weight: 800; text-decoration: none; }
-    .track-live-wait { margin-top: 16px; padding: 15px; border: 1px dashed #cbdccf; border-radius: 10px; background: #f5f9f5; }
-    .track-live-wait strong { color: #28563b; }
-    .track-live-wait p, .track-auto-refresh { margin: 6px 0 0; color: var(--track-muted); font-size: 10px; }
-    .track-auto-refresh { text-align: center; }
-    .track-error { color: #a94438 !important; }
-    .hidden { display: none; }
+
+    .track-event strong {
+      color: #34483a;
+    }
+
+    .track-event small {
+      display: block;
+      margin-top: 3px;
+      color: var(--track-muted);
+      line-height: 1.5;
+    }
+
+    .track-live-map {
+      margin-top: 16px;
+      overflow: hidden;
+      border: 1px solid #dfe9e1;
+      border-radius: 11px;
+      background: #fff;
+    }
+
+    .track-map-heading {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 13px;
+      color: #28563b;
+    }
+
+    .track-map-heading strong {
+      font-size: 12px;
+    }
+
+    .track-map-heading span {
+      color: var(--track-muted);
+      font-size: 10px;
+    }
+
+    .track-live-map iframe {
+      display: block;
+      width: 100%;
+      height: 300px;
+      border: 0;
+      background: #edf2ed;
+    }
+
+    .track-live-map>a {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px;
+      color: #286548;
+      font-size: 11px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .track-live-wait {
+      margin-top: 16px;
+      padding: 15px;
+      border: 1px dashed #cbdccf;
+      border-radius: 10px;
+      background: #f5f9f5;
+    }
+
+    .track-live-wait strong {
+      color: #28563b;
+    }
+
+    .track-live-wait p,
+    .track-auto-refresh {
+      margin: 6px 0 0;
+      color: var(--track-muted);
+      font-size: 10px;
+    }
+
+    .track-auto-refresh {
+      text-align: center;
+    }
+
+    .track-error {
+      color: #a94438 !important;
+    }
+
+    .hidden {
+      display: none;
+    }
 
     @media (max-width: 560px) {
-      .track-page { min-height: 100svh; padding: 24px 14px; align-items: flex-start; }
-      .track-card { padding: 22px 18px; border-radius: 14px; }
-      .track-form { grid-template-columns: 1fr; gap: 13px; margin-top: 21px; }
-      .track-form .wide { grid-column: auto; }
-      .track-head p { font-size: 11px; }
-      .track-note { margin-top: 16px; }
+      .track-page {
+        min-height: 100svh;
+        padding: 24px 14px;
+        align-items: flex-start;
+      }
+
+      .track-card {
+        padding: 22px 18px;
+        border-radius: 14px;
+      }
+
+      .track-form {
+        grid-template-columns: 1fr;
+        gap: 13px;
+        margin-top: 21px;
+      }
+
+      .track-form .wide {
+        grid-column: auto;
+      }
+
+      .track-head p {
+        font-size: 11px;
+      }
+
+      .track-note {
+        margin-top: 16px;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .track-back, .track-form input, .track-btn { transition: none; }
+
+      .track-back,
+      .track-form input,
+      .track-btn {
+        transition: none;
+      }
     }
   </style>
 </head>
+
 <body>
   <main class="track-page">
     <div class="track-wrap">
-      <a class="track-back" href="./index.html"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Voltar à loja</a>
+      <a class="track-back" href="./index.html"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Voltar à
+        loja</a>
       <section class="track-card" aria-labelledby="track-title">
         <div class="track-head">
           <span class="eyebrow">MERCADO JESI</span>
           <h1 id="track-title">Acompanhe seu pedido</h1>
-          <p>Digite o código gerado ao concluir sua compra para ver o andamento do pedido e, quando a entrega começar, acompanhar o entregador no mapa em tempo real.</p>
+          <p>Digite o código gerado ao concluir sua compra para ver o andamento do pedido e, quando a entrega começar,
+            acompanhar o entregador no mapa em tempo real.</p>
         </div>
         <form id="track-form" class="track-form">
-          <label class="wide"><span>Código de rastreamento</span><input name="tracking_code" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Cole aqui o código gerado na compra"></label>
-          <button class="track-btn wide" type="submit">Rastrear pedido <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+          <label class="wide"><span>Código de rastreamento</span><input name="tracking_code" required autocomplete="off"
+              autocapitalize="none" spellcheck="false" placeholder="Cole aqui o código gerado na compra"></label>
+          <button class="track-btn wide" type="submit">
+            <strong>Rastrear pedido</strong>
+            <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+          </button>
         </form>
         <div id="track-result" class="track-result hidden" aria-live="polite"></div>
-        <p class="track-note"><i class="fa-regular fa-circle-question" aria-hidden="true"></i><span>Guarde o código exibido ao concluir a compra. O mapa aparece quando o entregador iniciar a entrega e ativar o GPS.</span></p>
+        <p class="track-note"><i class="fa-regular fa-circle-question" aria-hidden="true"></i><span>Guarde o código
+            exibido ao concluir a compra. O mapa aparece quando o entregador iniciar a entrega e ativar o GPS.</span>
+        </p>
       </section>
     </div>
   </main>
   <script type="module" src="assets/js/tracking.js"></script>
 </body>
+
 </html>
