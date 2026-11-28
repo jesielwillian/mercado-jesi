@@ -88,10 +88,10 @@ function renderDeliveries(deliveries) {
     const isOut = order.status === 'out_for_delivery';
     const statusClass = isReady ? 'ready' : isOut ? 'out' : '';
     const action = isReady
-      ? `<button class="driver-btn" type="button" data-driver-start="${order.order_id}">Iniciar entrega e GPS</button>`
+      ? `<button class="driver-btn primary gps-action-start" type="button" data-driver-start="${order.order_id}"><i class="fa-solid fa-route"></i> Iniciar entrega e GPS</button>`
       : isOut
-        ? `<button class="driver-btn" type="button" data-driver-resume="${order.order_id}">Compartilhar / retomar GPS</button><button class="driver-btn danger" type="button" data-driver-pause="${order.order_id}">Pausar GPS</button>`
-        : '<button class="driver-btn" type="button" disabled>Aguardando pedido ficar pronto</button>';
+        ? `<button class="driver-btn primary gps-action-resume" type="button" data-driver-resume="${order.order_id}"><i class="fa-solid fa-location-crosshairs"></i> Compartilhar / retomar GPS</button><button class="driver-btn danger gps-action-pause" type="button" data-driver-pause="${order.order_id}"><i class="fa-solid fa-pause"></i> Pausar GPS</button>`
+        : '<button class="driver-btn outline gps-action-wait" type="button" disabled><i class="fa-solid fa-clock"></i> Aguardando pedido ficar pronto</button>';
     return `<article class="driver-order"><div class="driver-order-head"><h3>Pedido #${order.order_number}</h3><span class="driver-status ${statusClass}">${statusLabel(order.status)}</span></div><p><strong>Cliente:</strong> ${escapeHtml(order.customer_name || 'Não informado')}</p><p><strong>Entrega:</strong> ${escapeHtml(addressLabel(order.delivery_address))}</p><div class="driver-actions">${action}</div></article>`;
   }).join('');
 }
