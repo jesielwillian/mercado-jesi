@@ -1,1 +1,58 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#176b43"><title>Área do entregador | Mercado Jesi</title><link rel="stylesheet" href="assets/css/styles.css"><style>body{font-family:Nunito,system-ui,sans-serif;background:#f3f7f3;color:#203328}.driver{max-width:720px;margin:5vh auto;padding:24px}.card{background:white;border:1px solid #dfe9e1;border-radius:16px;padding:22px;margin:14px 0}.btn{padding:12px 16px;border:0;border-radius:10px;background:#176b43;color:#fff;font-weight:800;cursor:pointer;margin:5px 5px 5px 0}.btn:disabled{opacity:.5}.muted{color:#65776a}</style></head><body><main class="driver"><h1>Área do entregador</h1><p class="muted">Entre com sua conta de entregador. O GPS só será compartilhado durante uma entrega iniciada por você.</p><section class="card"><label>E-mail <input id="email" type="email" autocomplete="username"></label><label>Senha <input id="password" type="password" autocomplete="current-password"></label><button class="btn" id="login">Entrar</button><button class="btn" id="logout" hidden>Sair</button><p id="message" role="status"></p></section><section class="card"><h2>Minhas entregas</h2><div id="deliveries">Entre para carregar suas entregas.</div></section></main><script type="module" src="assets/js/driver-tracking.js"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#176b43">
+  <meta name="description" content="Painel do entregador do Mercado Jesi">
+  <title>Painel do entregador | Mercado Jesi</title>
+  <link rel="stylesheet" href="assets/css/styles.css">
+  <style>
+    :root{color-scheme:light;--driver-green:#176b43;--driver-dark:#104d32;--driver-muted:#687a70;--driver-border:#dce9df}
+    body.driver-page{margin:0;min-height:100vh;background:#f3f7f4;color:#1b3024;font-family:Nunito,system-ui,sans-serif}
+    .driver-shell{width:min(900px,calc(100% - 32px));margin:34px auto 60px}
+    .driver-top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}
+    .driver-brand{display:flex;align-items:center;gap:12px}.driver-brand-mark{display:grid;place-items:center;width:46px;height:46px;border-radius:14px;background:var(--driver-green);color:#fff;font-size:22px}
+    .driver-brand strong{display:block;font-size:1.08rem}.driver-brand small{color:var(--driver-muted)}
+    .driver-card{background:#fff;border:1px solid var(--driver-border);border-radius:20px;padding:clamp(20px,4vw,30px);box-shadow:0 12px 35px #173b2410;margin-bottom:18px}
+    .driver-card h1,.driver-card h2{margin:0 0 8px}.driver-subtitle{color:var(--driver-muted);margin:0 0 22px;line-height:1.55}
+    .driver-form{display:grid;grid-template-columns:1fr 1fr;gap:14px}.driver-field{display:grid;gap:7px;font-weight:700;font-size:.9rem}.driver-field.full{grid-column:1/-1}.driver-field input{width:100%;box-sizing:border-box;border:1px solid var(--driver-border);border-radius:11px;padding:13px 14px;font:inherit;background:#fbfdfb;color:#1b3024;outline:none}.driver-field input:focus{border-color:var(--driver-green);box-shadow:0 0 0 3px #176b4317}
+    .driver-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.driver-btn{border:0;border-radius:11px;padding:12px 18px;background:var(--driver-green);color:#fff;font:700 .95rem Nunito,system-ui;cursor:pointer}.driver-btn:hover{background:var(--driver-dark)}.driver-btn.secondary{background:#eaf2ec;color:var(--driver-green)}.driver-btn.danger{background:#fff0ed;color:#a73525}.driver-btn:disabled{opacity:.48;cursor:not-allowed}
+    .driver-message{margin:16px 0 0;padding:13px 15px;border-radius:11px;background:#eef5ef;color:#315b40;line-height:1.45}.driver-message.error{background:#fff0ed;color:#9d3325}.driver-message[hidden]{display:none}
+    .driver-session{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:14px 16px;background:#eff7f1;border:1px solid #d8e9dc;border-radius:13px;margin-bottom:18px}.driver-session small{display:block;color:var(--driver-muted)}
+    .driver-order-list{display:grid;gap:14px}.driver-order{border:1px solid var(--driver-border);border-radius:15px;padding:18px;background:#fcfefc}.driver-order-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.driver-order h3{margin:0;font-size:1.08rem}.driver-status{font-size:.78rem;font-weight:800;padding:6px 10px;border-radius:99px;background:#edf3ee;color:#496653}.driver-status.ready{background:#e5f5eb;color:#176b43}.driver-status.out{background:#fff4dc;color:#8a5b08}.driver-order p{margin:9px 0;color:#5d7064;line-height:1.5}.driver-empty{padding:22px;text-align:center;color:var(--driver-muted);background:#f8fbf8;border:1px dashed var(--driver-border);border-radius:13px}
+    .driver-foot{color:var(--driver-muted);font-size:.84rem;line-height:1.5;margin:14px 2px}.driver-hidden{display:none!important}
+    @media(max-width:620px){.driver-shell{width:min(100% - 22px,900px);margin:18px auto 40px}.driver-form{grid-template-columns:1fr}.driver-field.full{grid-column:auto}.driver-top{align-items:flex-start}.driver-card{border-radius:16px}}
+  </style>
+</head>
+<body class="driver-page">
+  <main class="driver-shell">
+    <header class="driver-top">
+      <div class="driver-brand"><span class="driver-brand-mark" aria-hidden="true">🚚</span><div><strong>Mercado Jesi</strong><small>Painel do entregador</small></div></div>
+      <a href="index.html" class="driver-btn secondary" style="text-decoration:none">Voltar à loja</a>
+    </header>
+
+    <section class="driver-card" id="driver-auth-card">
+      <h1>Acesse sua área</h1>
+      <p class="driver-subtitle">Entre com a conta de entregador cadastrada pela administração. Sua localização só será compartilhada durante uma entrega ativa e após sua autorização.</p>
+      <form id="driver-login-form" class="driver-form">
+        <label class="driver-field">E-mail<input id="driver-email" type="email" autocomplete="username" required></label>
+        <label class="driver-field">Senha<input id="driver-password" type="password" autocomplete="current-password" required></label>
+        <div class="driver-field full"><div class="driver-actions"><button class="driver-btn" id="driver-login" type="submit">Entrar</button></div></div>
+      </form>
+      <p class="driver-message" id="driver-auth-message" role="status" hidden></p>
+    </section>
+
+    <section class="driver-card driver-hidden" id="driver-panel">
+      <div class="driver-session"><div><strong id="driver-name">Entregador</strong><small>Conta autenticada</small></div><button class="driver-btn secondary" id="driver-logout" type="button">Sair</button></div>
+      <h2>Minhas entregas</h2>
+      <p class="driver-subtitle">Aqui aparecem os pedidos vinculados à sua conta. Para iniciar o GPS, o pedido precisa estar com status “Pronto”.</p>
+      <div id="driver-deliveries" class="driver-order-list"><div class="driver-empty">Carregando seus pedidos…</div></div>
+      <div class="driver-actions"><button class="driver-btn secondary" id="driver-refresh" type="button">Atualizar pedidos</button></div>
+      <p class="driver-foot">Mantenha esta página aberta durante a entrega. O navegador pode limitar a localização em segundo plano. O compartilhamento utiliza a permissão de localização deste dispositivo.</p>
+      <p class="driver-message" id="driver-message" role="status" hidden></p>
+    </section>
+  </main>
+  <script type="module" src="assets/js/driver-tracking.js"></script>
+</body>
+</html>

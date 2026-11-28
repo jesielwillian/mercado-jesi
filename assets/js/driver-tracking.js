@@ -1,8 +1,156 @@
-import {supabase,isSupabaseConfigured} from './supabase.js';
-const $=s=>document.querySelector(s);let watch=null,activeOrder=null;
-function say(t){$('#message').textContent=t}
-async function load(){const {data,error}=await supabase.rpc('driver_my_active_deliveries');if(error){$('#deliveries').textContent='Não foi possível carregar entregas. Verifique se a migração 0024 foi aplicada e se sua conta tem perfil delivery.';return;}$('#deliveries').innerHTML=data?.length?data.map(o=>`<article class="card"><b>Pedido #${o.order_number}</b><p>${o.customer_name}</p><p>${o.status==='ready'?'Pronto para iniciar':'Entrega em andamento'}</p><button class="btn" data-start="${o.order_id}" ${o.status!=='ready'?'disabled':''}>Iniciar GPS</button><button class="btn" data-stop="${o.order_id}">Finalizar compartilhamento</button></article>`).join(''):'Nenhuma entrega atribuída disponível.';}
-$('#login').onclick=async()=>{if(!supabase){say('Configure o Supabase antes de usar.');return;}const {error}=await supabase.auth.signInWithPassword({email:$('#email').value,password:$('#password').value});if(error){say(error.message);return;}say('Sessão iniciada.');$('#logout').hidden=false;await load();};
-$('#logout').onclick=async()=>{if(watch!==null)navigator.geolocation.clearWatch(watch);watch=null;activeOrder=null;await supabase.auth.signOut();$('#deliveries').textContent='Entre para carregar suas entregas.';$('#logout').hidden=true;say('Você saiu.');};
-$('#deliveries').onclick=async e=>{const start=e.target.closest('[data-start]'),stop=e.target.closest('[data-stop]');if(start){if(!navigator.geolocation){say('Este navegador não oferece geolocalização.');return;}const id=start.dataset.start;const {error}=await supabase.rpc('driver_start_delivery',{p_order_id:id});if(error){say('Não foi possível iniciar. O pedido precisa estar atribuído e pronto.');return;}activeOrder=id;say('GPS ativo. Mantenha esta página aberta e permita localização.');watch=navigator.geolocation.watchPosition(async p=>{const {error}=await supabase.rpc('driver_update_delivery_location',{p_order_id:id,p_lat:p.coords.latitude,p_lng:p.coords.longitude,p_accuracy:p.coords.accuracy});if(error)say('Falha ao enviar localização: '+error.message);},err=>say('GPS: '+err.message),{enableHighAccuracy:true,maximumAge:5000,timeout:20000});}if(stop){const id=stop.dataset.stop;if(watch!==null)navigator.geolocation.clearWatch(watch);watch=null;const {error}=await supabase.rpc('driver_stop_delivery_location',{p_order_id:id});if(error)say(error.message);else say('Compartilhamento encerrado.');activeOrder=null;}};
-supabase?.auth.getSession().then(({data})=>{if(data.session){$('#logout').hidden=false;load();}});
+import { supabase, isSupabaseConfigured } from './supabase.js';
+
+const $ = (selector) => document.querySelector(selector);
+let gpsWatchId = null;
+
+function message(target, text, type = 'info') {
+  const element = $(target);
+  element.textContent = text;
+  element.hidden = !text;
+  element.classList.toggle('error', type === 'error');
+}
+
+function statusLabel(status) {
+  return ({ confirmed: 'Confirmado — aguardando preparo', preparing: 'Em preparação', ready: 'Pronto para iniciar', out_for_delivery: 'Em entrega' })[status] || status;
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+}
+
+function addressLabel(value) {
+  if (!value) return 'Endereço não informado';
+  if (typeof value === 'string') {
+    try { value = JSON.parse(value); } catch { return value; }
+  }
+  if (typeof value !== 'object') return String(value);
+  return [value.street || value.rua || value.address, value.number || value.numero, value.neighborhood || value.bairro, value.complement || value.complemento, value.city || value.cidade, value.state || value.estado].filter(Boolean).join(', ') || 'Endereço cadastrado no pedido';
+}
+
+function stopBrowserWatch() {
+  if (gpsWatchId !== null && navigator.geolocation) navigator.geolocation.clearWatch(gpsWatchId);
+  gpsWatchId = null;
+}
+
+async function sendPosition(orderId, position) {
+  const { coords } = position;
+  const { error } = await supabase.rpc('driver_update_delivery_location', {
+    p_order_id: orderId,
+    p_lat: coords.latitude,
+    p_lng: coords.longitude,
+    p_accuracy: coords.accuracy
+  });
+  if (error) message('#driver-message', `Não foi possível enviar a localização: ${error.message}`, 'error');
+  else message('#driver-message', `Localização compartilhada. Precisão aproximada: ${Math.round(coords.accuracy)} m.`);
+}
+
+function beginGps(orderId) {
+  if (!navigator.geolocation) {
+    message('#driver-message', 'Este navegador não oferece geolocalização.', 'error');
+    return;
+  }
+  stopBrowserWatch();
+  message('#driver-message', 'Solicitando acesso à localização do dispositivo…');
+  gpsWatchId = navigator.geolocation.watchPosition(
+    (position) => sendPosition(orderId, position),
+    (error) => message('#driver-message', `GPS: ${error.message}. Confira a permissão de localização do navegador.`, 'error'),
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
+  );
+}
+
+async function pauseGps(orderId) {
+  stopBrowserWatch();
+  const { error } = await supabase.rpc('driver_stop_delivery_location', { p_order_id: orderId });
+  if (error) message('#driver-message', `O GPS foi pausado neste dispositivo, mas o servidor respondeu: ${error.message}`, 'error');
+  else message('#driver-message', 'Compartilhamento de localização pausado. A entrega continua em andamento.');
+  await loadDeliveries();
+}
+
+async function startDelivery(orderId) {
+  message('#driver-message', 'Iniciando entrega…');
+  const { error } = await supabase.rpc('driver_start_delivery', { p_order_id: orderId });
+  if (error) {
+    message('#driver-message', `Não foi possível iniciar a entrega: ${error.message}. Confirme se o pedido está atribuído a esta conta e com status “Pronto”.`, 'error');
+    return;
+  }
+  beginGps(orderId);
+  await loadDeliveries();
+}
+
+function renderDeliveries(deliveries) {
+  const container = $('#driver-deliveries');
+  if (!deliveries?.length) {
+    container.innerHTML = '<div class="driver-empty">Nenhum pedido atribuído disponível no momento.</div>';
+    return;
+  }
+  container.innerHTML = deliveries.map((order) => {
+    const isReady = order.status === 'ready';
+    const isOut = order.status === 'out_for_delivery';
+    const statusClass = isReady ? 'ready' : isOut ? 'out' : '';
+    const action = isReady
+      ? `<button class="driver-btn" type="button" data-driver-start="${order.order_id}">Iniciar entrega e GPS</button>`
+      : isOut
+        ? `<button class="driver-btn" type="button" data-driver-resume="${order.order_id}">Compartilhar / retomar GPS</button><button class="driver-btn danger" type="button" data-driver-pause="${order.order_id}">Pausar GPS</button>`
+        : '<button class="driver-btn" type="button" disabled>Aguardando pedido ficar pronto</button>';
+    return `<article class="driver-order"><div class="driver-order-head"><h3>Pedido #${order.order_number}</h3><span class="driver-status ${statusClass}">${statusLabel(order.status)}</span></div><p><strong>Cliente:</strong> ${escapeHtml(order.customer_name || 'Não informado')}</p><p><strong>Entrega:</strong> ${escapeHtml(addressLabel(order.delivery_address))}</p><div class="driver-actions">${action}</div></article>`;
+  }).join('');
+}
+
+async function loadDeliveries() {
+  const { data, error } = await supabase.rpc('driver_my_active_deliveries');
+  if (error) {
+    $('#driver-deliveries').innerHTML = '<div class="driver-empty">Não foi possível carregar os pedidos. Confirme a migração GPS e se esta conta possui perfil de entregador ativo.</div>';
+    message('#driver-message', error.message, 'error');
+    return;
+  }
+  renderDeliveries(data);
+}
+
+async function showSession(user) {
+  $('#driver-auth-card').classList.add('driver-hidden');
+  $('#driver-panel').classList.remove('driver-hidden');
+  const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
+  $('#driver-name').textContent = profile?.full_name || user.email || 'Entregador';
+  await loadDeliveries();
+}
+
+$('#driver-login-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!isSupabaseConfigured || !supabase) {
+    message('#driver-auth-message', 'O Supabase não está configurado neste projeto.', 'error');
+    return;
+  }
+  const button = $('#driver-login');
+  button.disabled = true;
+  button.textContent = 'Entrando…';
+  const { data, error } = await supabase.auth.signInWithPassword({ email: $('#driver-email').value.trim(), password: $('#driver-password').value });
+  button.disabled = false;
+  button.textContent = 'Entrar';
+  if (error) {
+    message('#driver-auth-message', error.message, 'error');
+    return;
+  }
+  message('#driver-auth-message', 'Login realizado. Carregando suas entregas…');
+  await showSession(data.user);
+});
+
+$('#driver-deliveries').addEventListener('click', async (event) => {
+  const start = event.target.closest('[data-driver-start]');
+  const resume = event.target.closest('[data-driver-resume]');
+  const pause = event.target.closest('[data-driver-pause]');
+  if (start) await startDelivery(start.dataset.driverStart);
+  if (resume) beginGps(resume.dataset.driverResume);
+  if (pause) await pauseGps(pause.dataset.driverPause);
+});
+
+$('#driver-refresh').addEventListener('click', loadDeliveries);
+$('#driver-logout').addEventListener('click', async () => {
+  stopBrowserWatch();
+  await supabase.auth.signOut();
+  $('#driver-panel').classList.add('driver-hidden');
+  $('#driver-auth-card').classList.remove('driver-hidden');
+  $('#driver-password').value = '';
+  message('#driver-auth-message', 'Você saiu da sua conta.');
+});
+
+if (supabase) supabase.auth.getSession().then(({ data }) => { if (data.session?.user) showSession(data.session.user); });
