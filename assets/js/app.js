@@ -339,9 +339,10 @@ function openCheckout() {
   }
   fulfillment.addEventListener("change", updateFulfillment);
   updateFulfillment();
-  form.elements.phone.addEventListener("input", (event) => {
-    event.target.value = formatBrazilPhone(event.target.value);
-  });
+  form.elements.phone.addEventListener(
+    "input",
+    (event) => (event.target.value = formatBrazilPhone(event.target.value)),
+  );
   const cepInput = form.elements.postal_code;
   cepInput?.addEventListener("blur", async () => {
     const cep = String(cepInput.value || "").replace(/\D/g, "");
@@ -434,10 +435,12 @@ function openCheckout() {
         throw new Error(message);
       }
       if (data?.error) throw new Error(data.error);
-      if (!data?.tracking_code)
+      if (!data?.tracking_code || !data?.order_number) {
+        console.error("Resposta inválida do create-checkout:", data);
         throw new Error(
-          "O pedido foi registrado, mas o código de rastreamento não foi retornado.",
+          "O pedido foi registrado, mas o código de rastreamento não foi retornado. Informe o problema ao mercado.",
         );
+      }
       const trackingInfo = {
         order_number: data.order_number,
         phone: customer.phone,
