@@ -6,6 +6,7 @@ import {
 } from "./product-store.js";
 import { formatBrazilPhone } from "./phone-mask.js";
 import { translateErrorMessage } from "./error-translations.js";
+
 const grid = document.querySelector("#product-grid"),
   count = document.querySelector("#result-count"),
   cartCount = document.querySelector("#cart-count"),
@@ -16,6 +17,7 @@ const grid = document.querySelector("#product-grid"),
   backdrop = document.querySelector("#drawer-backdrop"),
   cartItems = document.querySelector("#cart-items"),
   CART_STORAGE_KEY = "mercado-jesi:cart:v1";
+
 let products = [],
   cart = restoreCart(),
   storeSettings = {
@@ -24,6 +26,7 @@ let products = [],
     delivery_enabled: true,
     pickup_enabled: true,
   };
+
 function restoreCart() {
   try {
     const raw = localStorage.getItem(CART_STORAGE_KEY),
@@ -48,6 +51,7 @@ function restoreCart() {
     return [];
   }
 }
+
 function persistCart() {
   try {
     localStorage.setItem(
@@ -67,7 +71,9 @@ function persistCart() {
     console.warn("Não foi possível salvar a sacola neste navegador:", error);
   }
 }
+
 document.querySelector("#year").textContent = new Date().getFullYear();
+
 const money = (value) =>
     new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -86,11 +92,13 @@ const money = (value) =>
         })[c],
     ),
   displayUnit = (value) => (value === "pack" ? "pac" : value || "un.");
+
 function notify(message) {
   toast.textContent = message;
   toast.classList.add("show");
   setTimeout(() => toast.classList.remove("show"), 2300);
 }
+
 function showTrackingReceipt({
   order_number,
   phone,
@@ -105,6 +113,7 @@ function showTrackingReceipt({
   overlay.setAttribute("role", "dialog");
   overlay.setAttribute("aria-modal", "true");
   overlay.setAttribute("aria-labelledby", "tracking-receipt-title");
+
   const heading =
       state === "failure"
         ? "Pedido registrado"
@@ -121,41 +130,42 @@ function showTrackingReceipt({
       ? `<a class="receipt-btn receipt-payment" href="${escapeHtml(checkout_url)}"><i class="fa-solid fa-credit-card"></i> Continuar pagamento</a>`
       : "",
     icon = state === "failure" ? "fa-circle-exclamation" : "fa-check";
+
   overlay.innerHTML = `<style>
-#order-tracking-receipt{position:fixed;inset:0;z-index:10050;display:grid;place-items:center;padding:18px;background:rgba(8,18,13,.72);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);animation:receiptFade .25s ease}
+#order-tracking-receipt{position:fixed;inset:0;z-index:10050;display:grid;place-items:center;padding:14px;background:rgba(8,18,13,.65);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:receiptFade .2s ease}
 #order-tracking-receipt *{box-sizing:border-box}
-#order-tracking-receipt .receipt-card{position:relative;width:min(100%,470px);max-height:calc(100dvh - 36px);overflow-y:auto;padding:32px;border:1px solid rgba(255,255,255,.8);border-radius:25px;background:linear-gradient(145deg,#fff 0%,#f8fbf8 100%);box-shadow:0 30px 100px rgba(0,0,0,.3);color:#183b2b;animation:receiptEnter .35s cubic-bezier(.2,.8,.2,1)}
-#order-tracking-receipt .receipt-close{position:absolute;top:17px;right:17px;width:36px;height:36px;display:grid;place-items:center;border:1px solid #e7eee8;border-radius:12px;background:#f5f8f5;color:#637268;font-size:19px;cursor:pointer;transition:.2s}
-#order-tracking-receipt .receipt-close:hover{background:#e9f2eb;color:#176b45;transform:rotate(90deg)}
-#order-tracking-receipt .receipt-brand{display:flex;align-items:center;gap:9px;margin-bottom:25px;color:#244c36;font-size:11px;font-weight:800;letter-spacing:2px}
-#order-tracking-receipt .receipt-brand i{color:#18834f;font-size:17px}
-#order-tracking-receipt .receipt-success{width:58px;height:58px;display:grid;place-items:center;border:1px solid #d7eddd;border-radius:19px;background:linear-gradient(145deg,#e9f8ed,#dff2e4);color:#16804b;font-size:25px;box-shadow:0 7px 20px rgba(22,128,75,.09)}
+#order-tracking-receipt .receipt-card{position:relative;width:min(100%,380px);max-height:calc(100dvh - 28px);overflow-y:auto;padding:19px;border:1px solid #e8eee9;border-radius:16px;background:#fff;box-shadow:0 18px 55px rgba(0,0,0,.19);color:#183b2b;animation:receiptEnter .22s ease}
+#order-tracking-receipt .receipt-close{position:absolute;top:12px;right:12px;width:29px;height:29px;display:grid;place-items:center;border:1px solid #edf0ed;border-radius:9px;background:#f7f9f7;color:#637268;font-size:15px;cursor:pointer;transition:.2s}
+#order-tracking-receipt .receipt-close:hover{background:#e9f2eb;color:#176b45}
+#order-tracking-receipt .receipt-brand{display:flex;align-items:center;gap:7px;margin-bottom:17px;color:#244c36;font-size:9px;font-weight:800;letter-spacing:1.5px}
+#order-tracking-receipt .receipt-brand i{color:#18834f;font-size:13px}
+#order-tracking-receipt .receipt-success{width:39px;height:39px;display:grid;place-items:center;border:1px solid #d7eddd;border-radius:12px;background:#eaf7ed;color:#16804b;font-size:17px}
 #order-tracking-receipt .receipt-success.warning{border-color:#f3dfc3;background:#fff5e7;color:#c27a20}
-#order-tracking-receipt h2{margin:19px 0 9px;color:#173c29;font-size:26px;font-weight:800;letter-spacing:-.8px;line-height:1.2}
-#order-tracking-receipt .receipt-description{margin:0;color:#69776d;font-size:14px;line-height:1.7}
-#order-tracking-receipt .receipt-order{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:23px 0 12px;padding:13px 15px;border:1px solid #e8eee9;border-radius:13px;background:#fff}
-#order-tracking-receipt .receipt-order span{color:#7b887e;font-size:12px}
-#order-tracking-receipt .receipt-order strong{color:#254b34;font-size:14px}
-#order-tracking-receipt .receipt-code{padding:18px;border:1px solid #dcebe0;border-radius:17px;background:linear-gradient(145deg,#f2f9f3,#f8fbf8)}
-#order-tracking-receipt .receipt-code-label{display:flex;align-items:center;gap:7px;margin-bottom:11px;color:#54715d;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase}
+#order-tracking-receipt h2{margin:13px 0 6px;color:#173c29;font-size:18px;font-weight:800;letter-spacing:-.4px;line-height:1.25}
+#order-tracking-receipt .receipt-description{margin:0;color:#69776d;font-size:12px;line-height:1.55}
+#order-tracking-receipt .receipt-order{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:15px 0 9px;padding:10px 12px;border:1px solid #edf0ed;border-radius:9px;background:#fafbfa}
+#order-tracking-receipt .receipt-order span{color:#7b887e;font-size:11px}
+#order-tracking-receipt .receipt-order strong{color:#254b34;font-size:12px}
+#order-tracking-receipt .receipt-code{padding:12px;border:1px solid #dcebe0;border-radius:11px;background:#f6faf6}
+#order-tracking-receipt .receipt-code-label{display:flex;align-items:center;gap:6px;margin-bottom:7px;color:#54715d;font-size:9px;font-weight:800;letter-spacing:.7px;text-transform:uppercase}
 #order-tracking-receipt .receipt-code-label i{color:#18834f}
-#order-tracking-receipt .receipt-code strong{display:block;overflow-wrap:anywhere;user-select:all;color:#174c30;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:clamp(15px,4vw,19px);font-weight:800;letter-spacing:.6px;line-height:1.6}
-#order-tracking-receipt .receipt-copy{width:100%;min-height:44px;display:flex;align-items:center;justify-content:center;gap:9px;margin-top:15px;border:1px solid #cfe2d3;border-radius:11px;background:#fff;color:#176b45;font-size:13px;font-weight:800;cursor:pointer;transition:background .2s,border .2s,transform .2s}
-#order-tracking-receipt .receipt-copy:hover{border-color:#176b45;background:#edf7ef;transform:translateY(-1px)}
+#order-tracking-receipt .receipt-code strong{display:block;overflow-wrap:anywhere;user-select:all;color:#174c30;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:clamp(14px,4vw,17px);font-weight:800;letter-spacing:.5px;line-height:1.5}
+#order-tracking-receipt .receipt-copy{width:100%;min-height:35px;display:flex;align-items:center;justify-content:center;gap:7px;margin-top:9px;border:1px solid #d8e8db;border-radius:8px;background:#fff;color:#176b45;font-size:11px;font-weight:750;cursor:pointer;transition:.2s}
+#order-tracking-receipt .receipt-copy:hover{border-color:#176b45;background:#edf7ef}
 #order-tracking-receipt .receipt-copy.copied{border-color:#b8e0c3;background:#e4f6e8;color:#14713d}
-#order-tracking-receipt .receipt-hint{display:flex;align-items:flex-start;gap:9px;margin:17px 0 0;color:#77847a;font-size:12px;line-height:1.6}
+#order-tracking-receipt .receipt-hint{display:flex;align-items:flex-start;gap:7px;margin:11px 0 0;color:#77847a;font-size:10px;line-height:1.5}
 #order-tracking-receipt .receipt-hint i{margin-top:2px;color:#4c9566}
-#order-tracking-receipt .receipt-actions{display:grid;grid-template-columns:1fr;gap:10px;margin-top:22px}
-#order-tracking-receipt .receipt-btn{min-height:49px;display:flex;align-items:center;justify-content:center;gap:9px;padding:12px 16px;border:1px solid transparent;border-radius:12px;font-size:13px;font-weight:800;text-align:center;text-decoration:none;cursor:pointer;transition:transform .2s,filter .2s}
-#order-tracking-receipt .receipt-btn:hover{filter:brightness(.97);transform:translateY(-2px)}
-#order-tracking-receipt .receipt-primary{background:linear-gradient(135deg,#167548,#0e6039);box-shadow:0 7px 17px rgba(22,117,72,.2);color:#fff}
-#order-tracking-receipt .receipt-payment{border-color:#dce8df;background:#fff;color:#28563a}
-#order-tracking-receipt .receipt-footer{margin:19px 0 0;color:#9aa59c;font-size:10px;text-align:center;letter-spacing:.4px}
-#order-tracking-receipt .receipt-card::-webkit-scrollbar{width:5px}
+#order-tracking-receipt .receipt-actions{display:grid;grid-template-columns:1fr;gap:7px;margin-top:14px}
+#order-tracking-receipt .receipt-btn{min-height:37px;display:flex;align-items:center;justify-content:center;gap:7px;padding:9px 12px;border:1px solid transparent;border-radius:8px;font-size:11px;font-weight:750;text-align:center;text-decoration:none;cursor:pointer;transition:.2s}
+#order-tracking-receipt .receipt-btn:hover{filter:brightness(.97)}
+#order-tracking-receipt .receipt-primary{background:#176b45;border-color:#176b45;color:#fff}
+#order-tracking-receipt .receipt-payment{border-color:#e1eae3;background:#fff;color:#28563a}
+#order-tracking-receipt .receipt-footer{margin:12px 0 0;color:#9aa59c;font-size:9px;text-align:center;letter-spacing:.3px}
+#order-tracking-receipt .receipt-card::-webkit-scrollbar{width:4px}
 #order-tracking-receipt .receipt-card::-webkit-scrollbar-thumb{border-radius:10px;background:#c9d9cd}
 @keyframes receiptFade{from{opacity:0}to{opacity:1}}
-@keyframes receiptEnter{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
-@media(max-width:480px){#order-tracking-receipt{padding:12px}#order-tracking-receipt .receipt-card{padding:25px 20px;border-radius:21px;max-height:calc(100dvh - 24px)}#order-tracking-receipt h2{font-size:23px}#order-tracking-receipt .receipt-code{padding:15px}}
+@keyframes receiptEnter{from{opacity:0;transform:translateY(9px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:420px){#order-tracking-receipt{padding:10px}#order-tracking-receipt .receipt-card{padding:17px;max-height:calc(100dvh - 20px)}}
 @media(prefers-reduced-motion:reduce){#order-tracking-receipt,#order-tracking-receipt *{animation:none!important;transition:none!important}}
 </style>
 <section class="receipt-card">
@@ -166,14 +176,15 @@ function showTrackingReceipt({
 <p class="receipt-description">${escapeHtml(description)}</p>
 <div class="receipt-order"><span>Número do pedido</span><strong>#${escapeHtml(order_number)}</strong></div>
 <div class="receipt-code">
-<div class="receipt-code-label"><i class="fa-solid fa-location-dot"></i> Seu código de rastreamento</div>
+<div class="receipt-code-label"><i class="fa-solid fa-location-dot"></i> Código de rastreamento</div>
 <strong id="receipt-tracking-code">${escapeHtml(tracking_code)}</strong>
 <button class="receipt-copy" type="button" data-copy-tracking><i class="fa-regular fa-copy"></i><span>Copiar código</span></button>
 </div>
-<p class="receipt-hint"><i class="fa-solid fa-shield-halved"></i><span>Guarde este código. Com ele você poderá acompanhar as atualizações e visualizar a localização do entregador quando a entrega estiver em andamento.</span></p>
-<div class="receipt-actions">${paymentAction}<a class="receipt-btn receipt-primary" href="./rastreamento.html"><i class="fa-solid fa-map-location-dot"></i> Acompanhar meu pedido</a></div>
+<p class="receipt-hint"><i class="fa-solid fa-shield-halved"></i><span>Guarde este código para acompanhar as atualizações e visualizar a localização do entregador quando a entrega estiver em andamento.</span></p>
+<div class="receipt-actions">${paymentAction}<a class="receipt-btn receipt-primary" href="./rastreamento.html"><i class="fa-solid fa-map-location-dot"></i> Acompanhar pedido</a></div>
 <p class="receipt-footer">MERCADO JESI · SUA COMPRA, NOSSA PRIORIDADE</p>
 </section>`;
+
   document.body.appendChild(overlay);
   const close = () => overlay.remove();
   overlay.querySelector(".receipt-close").addEventListener("click", close);
@@ -185,7 +196,7 @@ function showTrackingReceipt({
     const label = copyButton.querySelector("span");
     try {
       await navigator.clipboard.writeText(String(tracking_code));
-      label.textContent = "Código copiado com sucesso!";
+      label.textContent = "Código copiado!";
       copyButton.classList.add("copied");
       copyButton.querySelector("i").className = "fa-solid fa-check";
     } catch {
@@ -198,7 +209,7 @@ function showTrackingReceipt({
       const copied = document.execCommand("copy");
       field.remove();
       label.textContent = copied
-        ? "Código copiado com sucesso!"
+        ? "Código copiado!"
         : "Selecione e copie o código acima";
       if (copied) {
         copyButton.classList.add("copied");
@@ -208,6 +219,7 @@ function showTrackingReceipt({
   });
   overlay.querySelector(".receipt-close").focus();
 }
+
 function openCart() {
   drawer.classList.add("open");
   backdrop.classList.add("open");
@@ -218,6 +230,7 @@ function closeCart() {
   backdrop.classList.remove("open");
   drawer.setAttribute("aria-hidden", "true");
 }
+
 function renderCart() {
   persistCart();
   cartCount.textContent = cart.reduce((sum, item) => sum + item.qty, 0);
@@ -233,6 +246,7 @@ function renderCart() {
     cart.reduce((sum, item) => sum + item.qty * item.price, 0),
   );
 }
+
 function renderProducts(items) {
   count.textContent = `${items.length} produto(s)`;
   if (!items.length) {
@@ -242,10 +256,11 @@ function renderProducts(items) {
   grid.innerHTML = items
     .map(
       (p) =>
-        `<article class="product-card"><div class="product-image">${p.image_url ? `<img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" loading="lazy">` : '<i class="fa-solid fa-bag-shopping" aria-hidden="true"></i>'}</div><div class="product-info"><span class="product-category">${escapeHtml(p.category_name || "Mercado")}</span><h3>${escapeHtml(p.name)}</h3><div class="product-bottom"><span class="price">${money(p.price)} <small class="unit">/${escapeHtml(displayUnit(p.unit))}</small></span><button class="add-button" data-add="${p.id}" ${p.available === false ? "disabled" : ""}>Adicionar <span class="add-button-plus" aria-hidden="true">+</span></button></div></div></article>`,
+        `<article class="product-card"><div class="product-image">${p.image_url ? `<img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" loading="lazy">` : '<i class="fa-solid fa-bag-shopping" aria-hidden="true"></i>'}</div><div class="product-info"><span class="product-category">${escapeHtml(p.category_name || "Mercado")}</span><h3>${escapeHtml(p.name)}</h3><div class="product-bottom"><span class="price">${money(p.price)} <small class="unit">/${escapeHtml(displayUnit(p.unit))}</small></span><button class="add-button" data-add="${escapeHtml(p.id)}" ${p.available === false ? "disabled" : ""}>Adicionar <span class="add-button-plus" aria-hidden="true">+</span></button></div></div></article>`,
     )
     .join("");
 }
+
 async function loadProducts() {
   if (!isSupabaseConfigured) {
     try {
@@ -296,6 +311,7 @@ async function loadProducts() {
   );
   renderProducts(products);
 }
+
 grid.addEventListener("click", (event) => {
   const button = event.target.closest("[data-add]");
   if (!button) return;
@@ -312,6 +328,7 @@ grid.addEventListener("click", (event) => {
   renderCart();
   notify(`${p.name} adicionado à sacola.`);
 });
+
 searchForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const q = searchInput.value.trim().toLocaleLowerCase("pt-BR");
@@ -323,6 +340,7 @@ searchForm.addEventListener("submit", (event) => {
     ),
   );
 });
+
 document.querySelector("#category-list").addEventListener("click", (event) => {
   const button = event.target.closest("[data-category]");
   if (!button) return;
@@ -333,15 +351,18 @@ document.querySelector("#category-list").addEventListener("click", (event) => {
     products.filter((p) => p.category_name === button.dataset.category),
   );
 });
+
 document.querySelector("#cart-button").addEventListener("click", openCart);
 document.querySelector("#cart-close").addEventListener("click", closeCart);
 backdrop.addEventListener("click", closeCart);
+
 document
   .querySelector("#checkout-button")
   .addEventListener("click", async () => {
     await loadStoreSettings();
     openCheckout();
   });
+
 async function loadStoreSettings() {
   if (!supabase) return;
   const { data } = await supabase
@@ -353,6 +374,7 @@ async function loadStoreSettings() {
     .maybeSingle();
   if (data) storeSettings = { ...storeSettings, ...data };
 }
+
 function openCheckout() {
   if (!cart.length) {
     notify("Adicione produtos à sacola antes de continuar.");
@@ -369,7 +391,9 @@ function openCheckout() {
       ? '<option value="pickup">Retirar na loja</option>'
       : "",
   ].join("");
+
   root.innerHTML = `<section class="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-title"><div class="checkout-head"><div><span class="eyebrow">MERCADO JESI</span><h2 id="checkout-title">Finalizar pedido</h2></div><button type="button" class="checkout-close" aria-label="Fechar">×</button></div><form id="store-checkout-form" class="checkout-form"><div class="checkout-section"><h3>Seus dados</h3><div class="checkout-fields"><label>Nome completo<input name="name" autocomplete="name" maxlength="120" required></label><label>Telefone<input name="phone" type="tel" autocomplete="tel" placeholder="(18) 99999-9999" required></label><label class="checkout-wide">E-mail para receber o rastreamento (opcional)<input name="email" type="email" autocomplete="email" maxlength="254" placeholder="voce@email.com"></label></div></div><div class="checkout-section"><h3>Como deseja receber?</h3><label class="checkout-wide">Recebimento<select name="fulfillment" id="checkout-fulfillment" required>${deliveryOptions}</select></label><div id="checkout-address" class="checkout-fields"><label>CEP<input name="postal_code" inputmode="numeric" maxlength="9" placeholder="00000-000"></label><label>Rua / Avenida<input name="street" autocomplete="street-address" maxlength="160" required></label><label>Número<input name="number" maxlength="20" required></label><label>Complemento<input name="complement" maxlength="100"></label><label>Bairro<input name="neighborhood" maxlength="100" required></label><label>Cidade<input name="city" maxlength="100" required></label><label>Estado (UF)<input name="state" maxlength="2" placeholder="SP"></label></div><p class="checkout-shipping" id="checkout-shipping-note"></p></div><div class="checkout-section"><h3>Cupom de desconto</h3><label class="checkout-wide">Código do cupom<input name="coupon_code" maxlength="40" autocomplete="off" placeholder="Ex.: BEMVINDO"></label></div><div class="checkout-section"><h3>Forma de pagamento</h3><div class="checkout-payment"><label><input type="radio" name="payment_method" value="pix" checked> Pix pelo Mercado Pago</label><label><input type="radio" name="payment_method" value="card"> Cartão de crédito pelo Mercado Pago</label><label><input type="radio" name="payment_method" value="onsite_card"> Cartão presencial (entrega ou retirada)</label></div></div><label class="checkout-wide">Observações (opcional)<textarea name="notes" rows="2" maxlength="1000" placeholder="Referência, preferência ou instrução para a entrega"></textarea></label><div class="checkout-total"><span>Total estimado</span><strong id="checkout-total"></strong></div><p class="checkout-error" id="checkout-error" role="alert"></p><button class="primary-button checkout-submit" type="submit">Confirmar pedido</button><small class="checkout-privacy"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span>O preço e a disponibilidade serão confirmados pelo sistema antes de registrar o pedido.</span></small></form></section>`;
+
   document.body.appendChild(root);
   const form = root.querySelector("#store-checkout-form"),
     fulfillment = form.elements.fulfillment,
@@ -380,6 +404,7 @@ function openCheckout() {
     address = root.querySelector("#checkout-address"),
     shippingNote = root.querySelector("#checkout-shipping-note"),
     totalEl = root.querySelector("#checkout-total");
+
   function updateFulfillment() {
     const delivery = fulfillment.value === "delivery";
     address.hidden = !delivery;
@@ -406,12 +431,14 @@ function openCheckout() {
         : "Entrega grátis para este valor de compra."
       : "Retirada na loja sem taxa de entrega.";
   }
+
   fulfillment.addEventListener("change", updateFulfillment);
   updateFulfillment();
   form.elements.phone.addEventListener(
     "input",
     (event) => (event.target.value = formatBrazilPhone(event.target.value)),
   );
+
   const cepInput = form.elements.postal_code;
   cepInput?.addEventListener("blur", async () => {
     const cep = String(cepInput.value || "").replace(/\D/g, "");
@@ -439,12 +466,14 @@ function openCheckout() {
       console.warn("Consulta de CEP indisponível:", error);
     }
   });
+
   root
     .querySelector(".checkout-close")
     .addEventListener("click", () => root.remove());
   root.addEventListener("click", (event) => {
     if (event.target === root) root.remove();
   });
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!supabase) {
@@ -466,6 +495,7 @@ function openCheckout() {
       orderNotes = String(values.notes || "")
         .trim()
         .slice(0, 1000);
+
     if (values.fulfillment === "delivery")
       customer.address = {
         postal_code: String(values.postal_code || "").replace(/\D/g, ""),
@@ -476,6 +506,7 @@ function openCheckout() {
         city: values.city,
         state: values.state,
       };
+
     try {
       const { data, error } = await supabase.functions.invoke(
         "create-checkout",
@@ -539,6 +570,7 @@ function openCheckout() {
     }
   });
 }
+
 function showCheckoutReturn() {
   const params = new URLSearchParams(location.search),
     state = params.get("checkout"),
@@ -570,10 +602,12 @@ function showCheckoutReturn() {
   }
   history.replaceState({}, document.title, location.pathname + location.hash);
 }
+
 loadStoreSettings();
 loadProducts();
 renderCart();
 showCheckoutReturn();
+
 (() => {
   const button = document.getElementById("back-to-top");
   if (!button) return;
