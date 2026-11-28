@@ -115,29 +115,98 @@ function showTrackingReceipt({
       state === "failure"
         ? "O pagamento não foi concluído. Seu pedido continua registrado. Você pode tentar novamente ou entrar em contato com a loja."
         : state === "pending"
-          ? "Seu pedido foi registrado e aguarda confirmação do pagamento. Guarde o código abaixo para acompanhar."
-          : "Seu pedido foi registrado. Guarde o código abaixo para acompanhar cada atualização.",
+          ? "Seu pedido foi registrado e aguarda a confirmação do pagamento. Guarde seu código para acompanhar tudo."
+          : "Seu pedido foi registrado com sucesso! Agora você pode acompanhar cada etapa da entrega.",
     paymentAction = checkout_url
-      ? `<a class="receipt-primary" href="${escapeHtml(checkout_url)}">Continuar para pagamento</a>`
-      : "";
-  overlay.innerHTML = `<style>#order-tracking-receipt{position:fixed;inset:0;z-index:10050;display:grid;place-items:center;padding:18px;background:rgba(12,35,24,.58);backdrop-filter:blur(5px)}#order-tracking-receipt .receipt-card{width:min(100%,460px);padding:28px;border:1px solid #e2ebe3;border-radius:22px;background:#fff;box-shadow:0 24px 70px rgba(12,35,24,.2);color:#183b2b}#order-tracking-receipt .receipt-icon{width:48px;height:48px;display:grid;place-items:center;border-radius:16px;background:#edf6ef;color:#176b45;font-size:22px}#order-tracking-receipt h2{margin:16px 0 8px;font-size:23px}#order-tracking-receipt p{line-height:1.6;color:#637268}#order-tracking-receipt .receipt-code{margin:18px 0;padding:16px;border:1px dashed #b8cdbd;border-radius:13px;background:#f6f9f6}#order-tracking-receipt .receipt-code small{display:block;color:#65776a;margin-bottom:7px}#order-tracking-receipt .receipt-code strong{display:block;overflow-wrap:anywhere;font-size:17px;letter-spacing:.03em;color:#164b32}#order-tracking-receipt .receipt-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}#order-tracking-receipt .receipt-actions button,#order-tracking-receipt .receipt-actions a{flex:1 1 145px;min-height:44px;display:flex;align-items:center;justify-content:center;border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:600;text-decoration:none;cursor:pointer}#order-tracking-receipt .receipt-primary{background:#176b45;color:#fff}#order-tracking-receipt .receipt-secondary{background:#edf3ee;color:#244c36}#order-tracking-receipt .receipt-close{position:absolute;right:calc(50% - min(230px,50vw - 18px));top:calc(50% - 250px);border:0;background:transparent;color:#617168;font-size:25px;cursor:pointer}@media(max-width:480px){#order-tracking-receipt .receipt-card{padding:22px}#order-tracking-receipt .receipt-close{top:calc(50% - 270px)}}</style><section class="receipt-card"><div class="receipt-icon"><i class="fa-solid fa-box-open" aria-hidden="true"></i></div><h2 id="tracking-receipt-title">${escapeHtml(heading)}</h2><p>${escapeHtml(description)}</p><div class="receipt-code"><small>Pedido #${escapeHtml(order_number)} · Código de rastreamento</small><strong>${escapeHtml(tracking_code)}</strong></div><p>Guarde este código. Você poderá acompanhar o pedido e visualizar a localização do entregador quando a entrega estiver em andamento.</p><div class="receipt-actions"><button class="receipt-secondary" type="button" data-copy-tracking>Copiar código</button>${paymentAction}<a class="receipt-primary" href="./rastreamento.html">Acompanhar pedido</a></div><button class="receipt-close" type="button" aria-label="Fechar">×</button></section>`;
+      ? `<a class="receipt-btn receipt-payment" href="${escapeHtml(checkout_url)}"><i class="fa-solid fa-credit-card"></i> Continuar pagamento</a>`
+      : "",
+    icon = state === "failure" ? "fa-circle-exclamation" : "fa-check";
+  overlay.innerHTML = `<style>
+#order-tracking-receipt{position:fixed;inset:0;z-index:10050;display:grid;place-items:center;padding:18px;background:rgba(8,18,13,.72);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);animation:receiptFade .25s ease}
+#order-tracking-receipt *{box-sizing:border-box}
+#order-tracking-receipt .receipt-card{position:relative;width:min(100%,470px);max-height:calc(100dvh - 36px);overflow-y:auto;padding:32px;border:1px solid rgba(255,255,255,.8);border-radius:25px;background:linear-gradient(145deg,#fff 0%,#f8fbf8 100%);box-shadow:0 30px 100px rgba(0,0,0,.3);color:#183b2b;animation:receiptEnter .35s cubic-bezier(.2,.8,.2,1)}
+#order-tracking-receipt .receipt-close{position:absolute;top:17px;right:17px;width:36px;height:36px;display:grid;place-items:center;border:1px solid #e7eee8;border-radius:12px;background:#f5f8f5;color:#637268;font-size:19px;cursor:pointer;transition:.2s}
+#order-tracking-receipt .receipt-close:hover{background:#e9f2eb;color:#176b45;transform:rotate(90deg)}
+#order-tracking-receipt .receipt-brand{display:flex;align-items:center;gap:9px;margin-bottom:25px;color:#244c36;font-size:11px;font-weight:800;letter-spacing:2px}
+#order-tracking-receipt .receipt-brand i{color:#18834f;font-size:17px}
+#order-tracking-receipt .receipt-success{width:58px;height:58px;display:grid;place-items:center;border:1px solid #d7eddd;border-radius:19px;background:linear-gradient(145deg,#e9f8ed,#dff2e4);color:#16804b;font-size:25px;box-shadow:0 7px 20px rgba(22,128,75,.09)}
+#order-tracking-receipt .receipt-success.warning{border-color:#f3dfc3;background:#fff5e7;color:#c27a20}
+#order-tracking-receipt h2{margin:19px 0 9px;color:#173c29;font-size:26px;font-weight:800;letter-spacing:-.8px;line-height:1.2}
+#order-tracking-receipt .receipt-description{margin:0;color:#69776d;font-size:14px;line-height:1.7}
+#order-tracking-receipt .receipt-order{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:23px 0 12px;padding:13px 15px;border:1px solid #e8eee9;border-radius:13px;background:#fff}
+#order-tracking-receipt .receipt-order span{color:#7b887e;font-size:12px}
+#order-tracking-receipt .receipt-order strong{color:#254b34;font-size:14px}
+#order-tracking-receipt .receipt-code{padding:18px;border:1px solid #dcebe0;border-radius:17px;background:linear-gradient(145deg,#f2f9f3,#f8fbf8)}
+#order-tracking-receipt .receipt-code-label{display:flex;align-items:center;gap:7px;margin-bottom:11px;color:#54715d;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase}
+#order-tracking-receipt .receipt-code-label i{color:#18834f}
+#order-tracking-receipt .receipt-code strong{display:block;overflow-wrap:anywhere;user-select:all;color:#174c30;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:clamp(15px,4vw,19px);font-weight:800;letter-spacing:.6px;line-height:1.6}
+#order-tracking-receipt .receipt-copy{width:100%;min-height:44px;display:flex;align-items:center;justify-content:center;gap:9px;margin-top:15px;border:1px solid #cfe2d3;border-radius:11px;background:#fff;color:#176b45;font-size:13px;font-weight:800;cursor:pointer;transition:background .2s,border .2s,transform .2s}
+#order-tracking-receipt .receipt-copy:hover{border-color:#176b45;background:#edf7ef;transform:translateY(-1px)}
+#order-tracking-receipt .receipt-copy.copied{border-color:#b8e0c3;background:#e4f6e8;color:#14713d}
+#order-tracking-receipt .receipt-hint{display:flex;align-items:flex-start;gap:9px;margin:17px 0 0;color:#77847a;font-size:12px;line-height:1.6}
+#order-tracking-receipt .receipt-hint i{margin-top:2px;color:#4c9566}
+#order-tracking-receipt .receipt-actions{display:grid;grid-template-columns:1fr;gap:10px;margin-top:22px}
+#order-tracking-receipt .receipt-btn{min-height:49px;display:flex;align-items:center;justify-content:center;gap:9px;padding:12px 16px;border:1px solid transparent;border-radius:12px;font-size:13px;font-weight:800;text-align:center;text-decoration:none;cursor:pointer;transition:transform .2s,filter .2s}
+#order-tracking-receipt .receipt-btn:hover{filter:brightness(.97);transform:translateY(-2px)}
+#order-tracking-receipt .receipt-primary{background:linear-gradient(135deg,#167548,#0e6039);box-shadow:0 7px 17px rgba(22,117,72,.2);color:#fff}
+#order-tracking-receipt .receipt-payment{border-color:#dce8df;background:#fff;color:#28563a}
+#order-tracking-receipt .receipt-footer{margin:19px 0 0;color:#9aa59c;font-size:10px;text-align:center;letter-spacing:.4px}
+#order-tracking-receipt .receipt-card::-webkit-scrollbar{width:5px}
+#order-tracking-receipt .receipt-card::-webkit-scrollbar-thumb{border-radius:10px;background:#c9d9cd}
+@keyframes receiptFade{from{opacity:0}to{opacity:1}}
+@keyframes receiptEnter{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:480px){#order-tracking-receipt{padding:12px}#order-tracking-receipt .receipt-card{padding:25px 20px;border-radius:21px;max-height:calc(100dvh - 24px)}#order-tracking-receipt h2{font-size:23px}#order-tracking-receipt .receipt-code{padding:15px}}
+@media(prefers-reduced-motion:reduce){#order-tracking-receipt,#order-tracking-receipt *{animation:none!important;transition:none!important}}
+</style>
+<section class="receipt-card">
+<button class="receipt-close" type="button" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+<div class="receipt-brand"><i class="fa-solid fa-basket-shopping"></i> MERCADO JESI</div>
+<div class="receipt-success ${state === "failure" ? "warning" : ""}"><i class="fa-solid ${icon}"></i></div>
+<h2 id="tracking-receipt-title">${escapeHtml(heading)}</h2>
+<p class="receipt-description">${escapeHtml(description)}</p>
+<div class="receipt-order"><span>Número do pedido</span><strong>#${escapeHtml(order_number)}</strong></div>
+<div class="receipt-code">
+<div class="receipt-code-label"><i class="fa-solid fa-location-dot"></i> Seu código de rastreamento</div>
+<strong id="receipt-tracking-code">${escapeHtml(tracking_code)}</strong>
+<button class="receipt-copy" type="button" data-copy-tracking><i class="fa-regular fa-copy"></i><span>Copiar código</span></button>
+</div>
+<p class="receipt-hint"><i class="fa-solid fa-shield-halved"></i><span>Guarde este código. Com ele você poderá acompanhar as atualizações e visualizar a localização do entregador quando a entrega estiver em andamento.</span></p>
+<div class="receipt-actions">${paymentAction}<a class="receipt-btn receipt-primary" href="./rastreamento.html"><i class="fa-solid fa-map-location-dot"></i> Acompanhar meu pedido</a></div>
+<p class="receipt-footer">MERCADO JESI · SUA COMPRA, NOSSA PRIORIDADE</p>
+</section>`;
   document.body.appendChild(overlay);
   const close = () => overlay.remove();
   overlay.querySelector(".receipt-close").addEventListener("click", close);
   overlay.addEventListener("click", (event) => {
     if (event.target === overlay) close();
   });
-  overlay
-    .querySelector("[data-copy-tracking]")
-    .addEventListener("click", async (event) => {
-      const button = event.currentTarget;
-      try {
-        await navigator.clipboard.writeText(String(tracking_code));
-        button.textContent = "Código copiado!";
-      } catch {
-        button.textContent = "Selecione e copie o código";
+  const copyButton = overlay.querySelector("[data-copy-tracking]");
+  copyButton.addEventListener("click", async () => {
+    const label = copyButton.querySelector("span");
+    try {
+      await navigator.clipboard.writeText(String(tracking_code));
+      label.textContent = "Código copiado com sucesso!";
+      copyButton.classList.add("copied");
+      copyButton.querySelector("i").className = "fa-solid fa-check";
+    } catch {
+      const field = document.createElement("textarea");
+      field.value = String(tracking_code);
+      field.style.position = "fixed";
+      field.style.opacity = "0";
+      document.body.appendChild(field);
+      field.select();
+      const copied = document.execCommand("copy");
+      field.remove();
+      label.textContent = copied
+        ? "Código copiado com sucesso!"
+        : "Selecione e copie o código acima";
+      if (copied) {
+        copyButton.classList.add("copied");
+        copyButton.querySelector("i").className = "fa-solid fa-check";
       }
-    });
+    }
+  });
+  overlay.querySelector(".receipt-close").focus();
 }
 function openCart() {
   drawer.classList.add("open");
