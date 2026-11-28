@@ -171,6 +171,7 @@ enhanceNumberInputs(document);
 const pageNames = {
   overview: "Visão geral",
   orders: "Pedidos",
+  "delivery-tracking": "Rastreamento de entregas",
   products: "Produtos",
   categories: "Categorias",
   inventory: "Estoque",
@@ -452,6 +453,7 @@ async function loadOverview() {
 }
 
 const adminModuleLoaders = {
+  "delivery-tracking": () => import("./delivery-tracking-admin.js"),
   orders: () => import("./orders-admin.js"),
   cash: () => import("./cash-admin.js"),
   customers: () => import("./customers-admin.js"),
@@ -505,6 +507,7 @@ async function showModule(key) {
       if (navigationSequence !== moduleNavigationSequence) return;
 
       const mounters = {
+        "delivery-tracking": () => module.mountDeliveryTrackingAdmin({ content, notify }),
         orders: () => module.mountOrdersAdmin({ content, notify }),
         cash: () => module.mountCashAdmin({ content, notify }),
         customers: () => module.mountCustomersAdmin({ content, notify }),
