@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
     }
 
     const queueHeaders = { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, "Content-Type": "application/json" };
-    await Promise.all(["process-whatsapp-queue", "process-email-queue"].map(async (queueName) => {
+    await Promise.all(["process-email-queue"].map(async (queueName) => {
       try {
         const response = await fetch(`${SUPABASE_URL}/functions/v1/${queueName}`, {
           method: "POST", headers: queueHeaders, body: "{}",

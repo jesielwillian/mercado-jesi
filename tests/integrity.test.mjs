@@ -45,7 +45,7 @@ test('login administrativo impede submissões simultâneas',()=>{
 });
 
 
-test('notificações de rastreamento por e-mail e WhatsApp estão preparadas',()=>{
+test('rastreamento do cliente usa código e GPS no mapa sem depender da fila WhatsApp',()=>{
   const migration=read('supabase/migrations/0023_order_tracking_notifications.sql');
   const emailFn=read('supabase/functions/process-email-queue/index.ts');
   const whatsappFn=read('supabase/functions/process-whatsapp-queue/index.ts');
@@ -57,7 +57,10 @@ test('notificações de rastreamento por e-mail e WhatsApp estão preparadas',()
   assert.match(whatsappFn,/WHATSAPP_TEMPLATE_NAME/);
   assert.match(whatsappFn,/tracking_code/);
   assert.match(checkout,/process-email-queue/);
-  assert.match(checkout,/process-whatsapp-queue/);
+  assert.doesNotMatch(checkout,/process-whatsapp-queue/);
+  assert.match(read('supabase/migrations/0026_public_customer_live_tracking.sql'),/get_public_order_tracking_by_code/);
+  assert.match(read('assets/js/tracking.js'),/get_public_order_tracking_by_code/);
+  assert.match(read('assets/js/tracking.js'),/openstreetmap\.org/);
 });
 
 test('checkout mostra código de rastreamento ao cliente',()=>{

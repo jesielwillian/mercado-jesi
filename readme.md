@@ -254,3 +254,8 @@ A migration `0023_order_tracking_notifications.sql` cria a fila de e-mails. Ao c
 O e-mail do checkout continua opcional: o cliente só recebe e-mail se preencher esse campo. O WhatsApp é enviado ao telefone informado, mas depende de uma conta WhatsApp Business Platform ativa e de template aprovado pela Meta. O código também aparece na confirmação do pedido no navegador; no retorno do Mercado Pago ele é recuperado do armazenamento local do mesmo navegador/dispositivo.
 
 As credenciais nunca devem ser colocadas em arquivos públicos, no frontend ou commitadas no Git.
+
+
+## Rastreamento do cliente pelo código e mapa GPS
+
+A migração `supabase/migrations/0026_public_customer_live_tracking.sql` habilita a consulta pública segura pelo código secreto gerado no pedido e retorna a última posição GPS somente enquanto a entrega estiver ativa. Aplique essa migração no SQL Editor do Supabase depois das migrações anteriores. O cliente informa apenas o código em `rastreamento.html`; a tela atualiza automaticamente a cada 15 segundos e exibe o mapa OpenStreetMap quando o entregador iniciar a entrega e compartilhar o GPS. O checkout deixa de acionar a fila de WhatsApp; o código continua aparecendo na confirmação da compra.

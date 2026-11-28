@@ -175,6 +175,16 @@
     }
     .track-event strong { color: #34483a; }
     .track-event small { display: block; margin-top: 3px; color: var(--track-muted); line-height: 1.5; }
+    .track-live-map { margin-top: 16px; overflow: hidden; border: 1px solid #dfe9e1; border-radius: 11px; background: #fff; }
+    .track-map-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 13px; color: #28563b; }
+    .track-map-heading strong { font-size: 12px; }
+    .track-map-heading span { color: var(--track-muted); font-size: 10px; }
+    .track-live-map iframe { display: block; width: 100%; height: 300px; border: 0; background: #edf2ed; }
+    .track-live-map > a { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; color: #286548; font-size: 11px; font-weight: 800; text-decoration: none; }
+    .track-live-wait { margin-top: 16px; padding: 15px; border: 1px dashed #cbdccf; border-radius: 10px; background: #f5f9f5; }
+    .track-live-wait strong { color: #28563b; }
+    .track-live-wait p, .track-auto-refresh { margin: 6px 0 0; color: var(--track-muted); font-size: 10px; }
+    .track-auto-refresh { text-align: center; }
     .track-error { color: #a94438 !important; }
     .hidden { display: none; }
 
@@ -200,16 +210,14 @@
         <div class="track-head">
           <span class="eyebrow">MERCADO JESI</span>
           <h1 id="track-title">Acompanhe seu pedido</h1>
-          <p>Consulte as atualizações da sua compra. Informe os dados utilizados no pedido e o código de rastreamento recebido após a finalização.</p>
+          <p>Digite o código gerado ao concluir sua compra para ver o andamento do pedido e, quando a entrega começar, acompanhar o entregador no mapa em tempo real.</p>
         </div>
         <form id="track-form" class="track-form">
-          <label><span>Número do pedido</span><input name="order_number" inputmode="numeric" autocomplete="off" required placeholder="Ex.: 1024"></label>
-          <label><span>Telefone da compra</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="(00) 00000-0000"></label>
-          <label class="wide"><span>Código de rastreamento</span><input name="tracking_code" required autocomplete="off" placeholder="Digite o código recebido no checkout"></label>
-          <button class="track-btn wide" type="submit">Consultar pedido <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+          <label class="wide"><span>Código de rastreamento</span><input name="tracking_code" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Cole aqui o código gerado na compra"></label>
+          <button class="track-btn wide" type="submit">Rastrear pedido <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
         </form>
         <div id="track-result" class="track-result hidden" aria-live="polite"></div>
-        <p class="track-note"><i class="fa-regular fa-circle-question" aria-hidden="true"></i><span>Não recebeu o código de rastreamento? Entre em contato com o Mercado Jesi usando o mesmo telefone informado na compra.</span></p>
+        <p class="track-note"><i class="fa-regular fa-circle-question" aria-hidden="true"></i><span>Guarde o código exibido ao concluir a compra. O mapa aparece quando o entregador iniciar a entrega e ativar o GPS.</span></p>
       </section>
     </div>
   </main>
