@@ -4,3 +4,103 @@
 /* Ações de GPS com hierarquia visual clara */
 .driver-actions .gps-action-start,.driver-actions .gps-action-resume{min-height:43px;padding:12px 17px;border-radius:11px;background:linear-gradient(115deg,#176b43,#238653);box-shadow:0 7px 17px #176b4326;color:#fff;font-size:11px}.driver-actions .gps-action-start:hover,.driver-actions .gps-action-resume:hover{background:linear-gradient(115deg,#104d31,#176b43);box-shadow:0 9px 20px #176b4333;transform:translateY(-2px)}.driver-actions .gps-action-pause{min-height:43px;padding:11px 15px;border-radius:11px;background:#fff3ef;border:1px solid #f2d7ce;color:#a84b36;font-size:10px}.driver-actions .gps-action-pause:hover{background:#ffe9e2;border-color:#e9bcae}.driver-actions .gps-action-wait{min-height:40px;background:#f3f5f3;border:1px solid #e7ece7;color:#87938b}.driver-actions .driver-btn i{font-size:12px}
 @media(max-width:760px){.drivers-admin-hero{align-items:flex-start;flex-direction:column;padding:20px}.drivers-admin-primary{width:100%}.drivers-admin-stats{grid-template-columns:1fr}.drivers-admin-panel{padding:14px}.gps-admin-panel .panel-heading{align-items:flex-start;flex-direction:column}.gps-refresh-button{width:100%}}
+
+/* Botões alinhados ao padrão nativo do painel administrativo */
+.driver-page .driver-btn,
+.dashboard-body .drivers-admin-primary,
+.dashboard-body .drivers-admin-open,
+.dashboard-body .gps-refresh-button,
+.dashboard-body .gps-map-button{
+  min-height:32px;
+  padding:7px 12px;
+  border-radius:9px;
+  font:700 11px/1.25 "Nunito",sans-serif;
+  letter-spacing:0;
+  box-shadow:none;
+  transform:none;
+}
+.driver-page .driver-btn.primary,
+.dashboard-body .gps-refresh-button{
+  background:#347b59;
+  border:1px solid #347b59;
+  color:#fff;
+}
+.driver-page .driver-btn.primary:hover,
+.dashboard-body .gps-refresh-button:hover{
+  background:#286548;
+  border-color:#286548;
+  box-shadow:none;
+  transform:none;
+}
+.driver-page .driver-btn.outline,
+.dashboard-body .drivers-admin-open,
+.dashboard-body .gps-map-button{
+  background:#f5f8f5;
+  border:1px solid #dce7de;
+  color:#52675a;
+}
+.driver-page .driver-btn.outline:hover,
+.dashboard-body .drivers-admin-open:hover,
+.dashboard-body .gps-map-button:hover{
+  background:#eef5ef;
+  border-color:#c9dccd;
+  color:#176b43;
+  transform:none;
+}
+.driver-page .driver-btn.danger{
+  background:#fff8f7;
+  border:1px solid #efd9d5;
+  color:#b45a4f;
+}
+.driver-page .driver-btn.danger:hover{
+  background:#fff1ee;
+  border-color:#efd9d5;
+  transform:none;
+}
+.driver-page .driver-btn:focus-visible,
+.dashboard-body .gps-refresh-button:focus-visible,
+.dashboard-body .gps-map-button:focus-visible{
+  outline:3px solid rgba(23,107,67,.14);
+  outline-offset:2px;
+}
+.driver-page .driver-actions .gps-action-start,
+.driver-page .driver-actions .gps-action-resume,
+.driver-page .driver-actions .gps-action-pause,
+.driver-page .driver-actions .gps-action-wait{
+  min-height:32px;
+  padding:7px 12px;
+  border-radius:9px;
+  box-shadow:none;
+  font:700 11px/1.25 "Nunito",sans-serif;
+  transform:none;
+}
+.driver-page .driver-actions .gps-action-start,
+.driver-page .driver-actions .gps-action-resume{
+  background:#347b59;
+  border:1px solid #347b59;
+  color:#fff;
+}
+.driver-page .driver-actions .gps-action-start:hover,
+.driver-page .driver-actions .gps-action-resume:hover{
+  background:#286548;
+  border-color:#286548;
+  box-shadow:none;
+  transform:none;
+}
+.driver-page .driver-actions .gps-action-pause{
+  background:#fff8f7;
+  border:1px solid #efd9d5;
+  color:#b45a4f;
+}
+.driver-page .driver-actions .gps-action-pause:hover{background:#fff1ee;border-color:#efd9d5}
+.driver-page .driver-actions .gps-action-wait{
+  background:#f5f8f5;
+  border:1px solid #dce7de;
+  color:#87938b;
+}
+.dashboard-body .drivers-admin-primary{
+  background:#347b59;
+  border:1px solid #347b59;
+  color:#fff;
+}
+.dashboard-body .drivers-admin-primary:hover{background:#286548;border-color:#286548;transform:none}
